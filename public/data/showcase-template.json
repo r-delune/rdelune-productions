@@ -1,0 +1,231 @@
+{
+  "generated_at": "2026-04-09T22:41:10.133492Z",
+  "total_albums": 1,
+  "total_tracks": 11,
+  "albums": [
+    {
+      "name": "Ready Up The Shape Vol.1",
+      "active": true,
+      "description": "IDMish mental Roam ones pt.1. Decision needed to merge this with Tues etc or make that a seperte album\n\n\n",
+      "status": "WEBSITE",
+      "artwork_url": "https://audio.rdelune.dev/album-artwork-web/Ready_Up_The_Shape_Vol.1.jpg",
+      "base_color": "#3786be",
+      "visual_config": {
+        "default_transition_ms": 1200
+      },
+      "artist_name": "Roam",
+      "genre": null,
+      "release_date": "2013",
+      "bpm": null,
+      "key": null,
+      "tracks": [
+        {
+          "id": 113853554,
+          "title": "Rewaken",
+          "filename": "rewaken.mp3",
+          "format": "mp3",
+          "duration_seconds": 419.904,
+          "size_bytes": 16796160,
+          "r2_url": "https://audio.rdelune.dev/renders/113853554/rewaken.mp3",
+          "star_rating": 4,
+          "tags": [],
+          "section_times": [
+            30,
+            60,
+            90,
+            120,
+            150,
+            180
+          ]
+        },
+        {
+          "id": 112793527,
+          "title": "Exploring (Safe Again)",
+          "filename": "exploring (safe again).mp3",
+          "format": "mp3",
+          "duration_seconds": 345.024,
+          "size_bytes": 13800960,
+          "r2_url": "https://audio.rdelune.dev/renders/112793527/exploring_safe_again.mp3",
+          "star_rating": 4,
+          "tags": [],
+          "section_times": [
+            30,
+            60,
+            90,
+            120,
+            150
+          ]
+        },
+        {
+          "id": 228,
+          "title": "Retrograde Amnesia",
+          "filename": "Retrograde Amnesia.mp3",
+          "format": "mp3",
+          "duration_seconds": 351.059575,
+          "size_bytes": 14042416,
+          "r2_url": "https://audio.rdelune.dev/renders/228/Retrograde_Amnesia.mp3",
+          "star_rating": null,
+          "tags": [],
+          "section_times": [
+            30,
+            60,
+            90,
+            120,
+            150
+          ]
+        },
+        {
+          "id": 539,
+          "title": "Tues",
+          "filename": "Tues-2.mp3",
+          "format": "mp3",
+          "duration_seconds": 216.058775,
+          "size_bytes": 8642384,
+          "r2_url": "https://audio.rdelune.dev/renders/539/Tues-2.mp3",
+          "star_rating": null,
+          "tags": [],
+          "section_times": [
+            30,
+            60,
+            90
+          ]
+        },
+        {
+          "id": 5580,
+          "title": "Houseonthehill",
+          "filename": "3. HOUSEONTHEHILL4-2.mp3",
+          "format": "mp3",
+          "duration_seconds": 431.36,
+          "size_bytes": 17254433,
+          "r2_url": "https://audio.rdelune.dev/renders/5580/3._HOUSEONTHEHILL4-2.mp3",
+          "star_rating": 4,
+          "tags": [],
+          "section_times": [
+            30,
+            60,
+            90,
+            120,
+            150,
+            180,
+            210
+          ]
+        },
+        {
+          "id": 548,
+          "title": "Nyewg",
+          "filename": "nyew.mp3",
+          "format": "mp3",
+          "duration_seconds": 237.7404081632653,
+          "size_bytes": 3804099,
+          "r2_url": "https://audio.rdelune.dev/renders/548/nyew.mp3",
+          "star_rating": 4,
+          "tags": [],
+          "section_times": [
+            30,
+            60,
+            90
+          ]
+        },
+        {
+          "id": 188470585,
+          "title": "Rathmore Lawn",
+          "filename": "bleurgh1154dsddSDSdd.mp3",
+          "format": "mp3",
+          "duration_seconds": 479.999975,
+          "size_bytes": 19199999,
+          "r2_url": "https://audio.rdelune.dev/renders/188470585/bleurgh1154dsddSDSdd.mp3",
+          "star_rating": null,
+          "tags": [],
+          "section_times": [
+            30,
+            60,
+            90,
+            120,
+            150,
+            180,
+            210
+          ]
+        },
+        {
+          "id": 188459238,
+          "title": "Start",
+          "filename": "start123.wav",
+          "format": "wav",
+          "duration_seconds": 366.222222,
+          "size_bytes": 64601644,
+          "r2_url": "https://audio.rdelune.dev/renders/188459238/start123.wav",
+          "star_rating": null,
+          "tags": [],
+          "section_times": [
+            30,
+            60,
+            90,
+            120,
+            150,
+            180
+          ]
+        },
+        {
+          "id": 188459102,
+          "title": "Stress",
+          "filename": "ffffffffff1hgugnngg_ee11.wav",
+          "format": "wav",
+          "duration_seconds": 280.701769,
+          "size_bytes": 49515836,
+          "r2_url": "https://audio.rdelune.dev/renders/188459102/ffffffffff1hgugnngg_ee11.wav",
+          "star_rating": 4,
+          "tags": [],
+          "section_times": [
+            30,
+            60,
+            90,
+            120
+          ]
+        },
+        {
+          "id": 5416,
+          "title": "Aimee",
+          "filename": "aimee32.wav",
+          "format": "wav",
+          "duration_seconds": 244.363646,
+          "size_bytes": 46917900,
+          "r2_url": "https://audio.rdelune.dev/renders/5416/aimee32.wav",
+          "star_rating": 3,
+          "tags": [],
+          "section_times": [
+            30,
+            60,
+            90,
+            120
+          ]
+        },
+        {
+          "id": 188459437,
+          "title": "Fasthiphopqf (Aimee)",
+          "filename": "Fasthiphopqf (Aimee).wav",
+          "format": "wav",
+          "duration_seconds": 609.929501,
+          "size_bytes": 107591608,
+          "r2_url": "https://audio.rdelune.dev/renders/188459437/Fasthiphopqf_Aimee.wav",
+          "star_rating": 4,
+          "tags": [],
+          "section_times": [
+            30,
+            60,
+            90,
+            120,
+            150,
+            180,
+            210,
+            240,
+            270,
+            300
+          ]
+        }
+      ],
+      "track_count": 11,
+      "total_duration_seconds": 3982.4,
+      "total_duration_formatted": "1h 6m"
+    }
+  ]
+}

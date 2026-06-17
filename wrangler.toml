@@ -1,0 +1,8 @@
+name = "rdelune-productions"
+compatibility_date = "2024-04-01"
+pages_build_output_dir = "out"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rdelune-analytics"
+database_id = "3370109f-1457-4c87-a650-ca242851ed33"
