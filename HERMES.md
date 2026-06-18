@@ -170,7 +170,15 @@ Every cycle must pass all gates before deploy. These replace human review.
 5. Update `VISUAL_LEDGER.md` — Worklog entry + Coverage Map + Technique Coverage.
 6. Commit to `main`, then `wrangler pages deploy out`.
 7. After deploy, load `https://productions.rdelune.dev` and confirm no console errors.
-8. Take a screenshot of the new sketch rendering in the mood lab (`/?lab=1`) and send it via chat, with the recipe ID clearly stated. Example: "Deployed `three-fresnel-core`. Screenshot: [image]. Reply with 'remove it' or 'tweak X' if needed."
+8. Screenshot the new sketch:
+   - Start the dev server: `PATH=/home/hermes/.hermes/node/bin:$PATH npm run dev:productions` (port 8084, runs in background)
+   - Wait ~10 seconds for it to be ready
+   - Open `http://localhost:8084/?lab=1` in the browser
+   - In the mood lab, select the new recipe by name from the recipe list
+   - Take a screenshot once the sketch is rendering
+   - Kill the dev server: find its PID with `lsof -i :8084` then `kill <PID>`
+   - **Do not navigate back or close the browser tab before taking the screenshot — just kill the server process directly after**
+   - Send the screenshot via chat with the recipe ID. Example: "Deployed `three-fresnel-core`. [screenshot]. Reply 'remove it' or 'tweak X' if needed."
 
 If any gate cannot be completed, stop and report exactly what was skipped and why. Do not commit or deploy a partial cycle.
 
