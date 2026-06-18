@@ -31,7 +31,7 @@ export const PRODUCTIONS_VISUAL_SETTINGS_VERSION_STORAGE_KEY = 'productions-visu
 // against. Lets newly-finished sketches auto-enroll into a returning user's deck
 // without clobbering their curation. See reconcileAutomaticDeckEnrollment.
 export const PRODUCTIONS_AUTOMATIC_DECK_KNOWN_STORAGE_KEY = 'productions-automatic-deck-known-v1';
-export const PRODUCTIONS_SETTINGS_BUNDLE_VERSION = 6;
+export const PRODUCTIONS_SETTINGS_BUNDLE_VERSION = 7;
 export const LEGACY_HIDDEN_REVIEW_SKETCHES_STORAGE_KEY = 'productions-hidden-review-sketches-v1';
 
 const LEGACY_STARTUP_SKETCH_DECK: readonly ExplorerRecipeId[] = [
@@ -198,12 +198,12 @@ function mergeLocalWithShippedSettings(localSettings: ProductionsVisualSettings 
 }
 
 function migrateLegacyProductionsVisualSettings(settings: ProductionsVisualSettings): ProductionsVisualSettings {
-  const legacyDeck = new Set(LEGACY_STARTUP_SKETCH_DECK);
-  const preservesLegacyDefault = settings.automaticSketchDeck.length === legacyDeck.size
-    && settings.automaticSketchDeck.every((recipeId) => legacyDeck.has(recipeId));
+  // v7: reset the deck to the full current eligible set so Three.js recipes
+  // (and any other newly-shipped sketches) enroll for all returning users,
+  // not just those who loaded after the reconciliation snapshot was seeded.
   return normalizeProductionsVisualSettings({
     ...settings,
-    automaticSketchDeck: preservesLegacyDefault ? [...FALLBACK_AUTOMATIC_SKETCH_DECK] : settings.automaticSketchDeck,
+    automaticSketchDeck: [...FALLBACK_AUTOMATIC_SKETCH_DECK],
   }, DEFAULT_PRODUCTIONS_VISUAL_SETTINGS);
 }
 
