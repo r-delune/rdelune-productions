@@ -187,12 +187,25 @@ Hermes chooses the next item from `VISUAL_LEDGER.md` by balancing:
 
 Three.js/WebGL is primary for new visuals. Canvas2D/q5 is legacy-kept for maintenance. Do not add runtime audio analysis, FFT, BPM detection, synthetic beat clocks, new rendering libraries, or postprocessing frameworks.
 
+## Reference Implementations
+
+Before writing any new kernel, read the most relevant existing one:
+
+| Technique | Read this file |
+|---|---|
+| Instanced particle field | `src/components/explorer/visualizers/three-curl-flow.ts` |
+| Fullscreen fragment shader | `src/components/explorer/visualizers/three-fresnel-core.ts` |
+| Raymarch / volumetric | `src/components/explorer/visualizers/three-volumetric-fog.ts` |
+| Ping-pong FBO / feedback | `src/components/explorer/visualizers/three-artwork-flux.ts` |
+
+Copy the import block verbatim. Do not invent import paths.
+
 ## Suggested First Cycles
 
 These are starting suggestions, not permanent instructions:
 
-1. QA `three-artwork-flux`: force-preview, tune, confirm accent-only behavior.
-2. Add an automated `/productions` visual smoke check to reduce future token/browser time.
-3. Build `three-fresnel-core` for Orbit/Core + Sparse Minimal.
-4. Build a flat GPU material texture using ping-pong FBO, not artwork.
-5. Rebalance ledger coverage and retire weak or duplicative visuals.
+1. ~~Build `three-fresnel-core`~~ — ✅ done
+2. Build a flat GPU material texture (ping-pong FBO, grain/erosion/cellular surface). Fills Texture gap.
+3. Build a light-only recipe (luminous glints/rays/bloom, no dense particles). Fills Light gap.
+4. Build a near-still volumetric tableau for outros. Fills Sparse Minimal gap.
+5. QA and tune existing sketches using the Improvement Candidates list in VISUAL_LEDGER.md.
