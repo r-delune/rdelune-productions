@@ -564,6 +564,15 @@ export interface ThreeFresnelCoreTuning {
   glowRadius: number;   // outer glow cloud extent relative to radius
 }
 
+export interface ThreeFlatMaterialTuning {
+  kernel: 'three-flat-material';
+  maxLayers: number;    // ridged grain ceiling (runtime uLayers scales below)
+  grainScale: number;   // fine sediment/material frequency
+  cellScale: number;    // larger eroded-cell frequency
+  erosion: number;      // crack/edge contrast
+  veinGlow: number;     // luminous mineral gain
+}
+
 export interface ThreeArtworkFluxTuning {
   kernel: 'three-artwork-flux';
   memory: number;               // feedback persistence
@@ -610,7 +619,8 @@ export type VisualizerTuningConfig =
   | ThreeVolumetricFogTuning
   | ThreeCausticsTuning
   | ThreeArtworkFluxTuning
-  | ThreeFresnelCoreTuning;
+  | ThreeFresnelCoreTuning
+  | ThreeFlatMaterialTuning;
 
 export const VISUALIZER_TUNINGS = {
   'cong-cloud-orbit-default': {
@@ -1974,6 +1984,14 @@ export const VISUALIZER_TUNINGS = {
     rimWidth: 0.18,
     glowRadius: 0.55,
   },
+  'three-flat-material-default': {
+    kernel: 'three-flat-material',
+    maxLayers: 6,
+    grainScale: 3.3,
+    cellScale: 2.25,
+    erosion: 0.48,
+    veinGlow: 0.82,
+  },
 } as const;
 
 export type VisualizerTuningKey = keyof typeof VISUALIZER_TUNINGS;
@@ -2202,6 +2220,12 @@ export function resolveThreeFresnelCoreTuning(tuning?: VisualizerTuningConfig): 
   return tuning?.kernel === 'three-fresnel-core'
     ? tuning
     : VISUALIZER_TUNINGS['three-fresnel-core-default'];
+}
+
+export function resolveThreeFlatMaterialTuning(tuning?: VisualizerTuningConfig): ThreeFlatMaterialTuning {
+  return tuning?.kernel === 'three-flat-material'
+    ? tuning
+    : VISUALIZER_TUNINGS['three-flat-material-default'];
 }
 
 export function describeVisualizerTuning(tuningKey?: VisualizerTuningKey): string {

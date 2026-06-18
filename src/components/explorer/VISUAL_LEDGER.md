@@ -48,7 +48,7 @@ Families mirror `VISUAL_REPERTOIRE.md`. Update counts/gaps as work lands. `+` = 
 | Landscape | + | `cong-contour-lines`, `cong-landscape-flow`, `cong-landscape-og-current`, `native-nightfall-ridges`, `cong-horizon-field` (review-ready) | — |
 | Weather | + | `cong-rain-shower`, `cong-top-bottom-storm`, `native-sidewind-drift` | — |
 | Water / Tide | + | `cong-waterline-shimmer`, `three-caustics` | — |
-| Texture | + | native overlays/grain; `cong-artwork-datamosh-rain-evolution` (legacy restrained accent); `three-artwork-flux` (artwork feedback); `three-volumetric-fog` (partial) | flat material/surface texture (grain, erosion, cellular) distinct from volumetric atmosphere |
+| Texture | + | native overlays/grain; `cong-artwork-datamosh-rain-evolution` (legacy restrained accent); `three-artwork-flux` (artwork feedback); `three-volumetric-fog` (partial); `three-flat-material` | continue tuning procedural surfaces against fog/artwork overlap |
 | Light | ~ | `grid-rays`, `random-chords` overlays | **!** light-only recipes that don't require dense particles |
 | Linework | ~ | `cong-cloud-again-lines`, `cong-contour-lines` | **!** non-cloud `cong-wandering-lines` recipe/kernel |
 | Grid / Structure | ! | `grid-rays` overlay | **!** `cong-grid-pulse` (restrained tile/grid pulse) from `derkdisco` |
@@ -68,7 +68,7 @@ Rotate GPU techniques so the repertoire does not become only fullscreen fragment
 | Fullscreen shader material | + | `three-caustics` | Avoid duplicate caustic/noise demos |
 | Raymarch / volumetric | + | `three-volumetric-fog` | Near-still outro tableau |
 | Instanced field | + | `three-curl-flow` | Only add if the scene role differs clearly |
-| Ping-pong FBO feedback | + | `three-artwork-flux` | Flat material erosion or reaction surface |
+| Ping-pong FBO feedback | + | `three-artwork-flux` | Reaction surface still open if a stateful material is needed |
 | Artwork texture sampling | + | `three-artwork-flux` | Keep accent-only; never opener |
 | Fresnel / SDF / core form | + | `three-fresnel-core` | — |
 | Light-only GPU scene | ! | — | Glints/rays/bloom without dense particles |
@@ -80,7 +80,7 @@ Rotate GPU techniques so the repertoire does not become only fullscreen fragment
 Seeded from `VISUAL_REPERTOIRE.md` declared gaps + "Next Batch". Prefer Three-first rendering structures over more particle presets.
 
 1. ~~**Fresnel bloom core**~~ — ✅ shipped as `three-fresnel-core` (2026-06-18)
-2. **Flat material texture** — grain/erosion/cellular GPU surface distinct from volumetric fog. Fills Texture. (Three)
+2. ~~**Flat material texture**~~ — ✅ shipped as `three-flat-material` (2026-06-19)
 3. **Light-only recipe** — luminous glints/rays/soft bloom that does not need dense particles. Fills Light. (Three)
 4. **Near-still volumetric tableau** — premium low-density ending for outros/low-energy tracks. Fills Sparse Minimal. (Three)
 5. **Legacy Canvas2D maintenance** — `cong-grid-pulse`, `cong-mist-noise`, `cong-wandering-lines` only when the cycle is explicitly maintenance.
@@ -123,6 +123,7 @@ color), or anything that blanks under reduced motion.
 
 Newest first. Format: `YYYY-MM-DD · new|improvement · <recipe/kernel> · <one-line outcome>`.
 
+- 2026-06-19 · new · `three-flat-material` · fullscreen GPU sediment/erosion surface; fills Texture gap with section-revealed mineral veins and no artwork dependency.
 - 2026-06-18 · new · `three-fresnel-core` · fullscreen SDF Fresnel rim glow; fills Orbit/Core + Sparse Minimal gaps; startupEligible, section-arc, exclusion-rect support.
 - 2026-06-17 · new · `three-artwork-flux` + GPU helpers · added CORS-safe artwork texture loading, ping-pong FBO support, reusable instanced-field helper, and Three-first agent docs.
 - 2026-06-17 · meta · AGENT_GUIDE.md + VISUAL_LEDGER.md created · canonical aesthetic + continual-improvement system established.

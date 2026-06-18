@@ -847,6 +847,20 @@ const RECIPES: Readonly<Record<string, ExplorerRecipe>> = {
     startupEligible: false,
     randomEligible: true,
   },
+  'three-flat-material': {
+    id: 'three-flat-material',
+    name: 'Flat Material',
+    source: 'native',
+    kernel: 'three-flat-material',
+    sceneProfile: 'texture',
+    baseParams: { turbulence: 0.3, density: 0.48, glow: 0.3, drift: 0.22, hueShift: -4, shimmer: 0.28, impulse: 0.04 },
+    cardBg: 'transparent',
+    cardBorder: 'rgba(170, 165, 205, 0.16)',
+    tuningKey: 'three-flat-material-default',
+    productionReady: true,
+    startupEligible: true,
+    randomEligible: true,
+  },
 };
 
 export const DEFAULT_RECIPE_ID = 'cong-artwork-datamosh-rain-evolution';

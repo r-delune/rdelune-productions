@@ -52,6 +52,7 @@ import { createThreeVolumetricFog } from './three-volumetric-fog';
 import { createThreeCaustics } from './three-caustics';
 import { createThreeArtworkFlux } from './three-artwork-flux';
 import { createThreeFresnelCore } from './three-fresnel-core';
+import { createThreeFlatMaterial } from './three-flat-material';
 
 export type VisualizerName =
   | 'cong-cloud-orbit'
@@ -102,7 +103,8 @@ export type VisualizerName =
   | 'three-volumetric-fog'
   | 'three-caustics'
   | 'three-artwork-flux'
-  | 'three-fresnel-core';
+  | 'three-fresnel-core'
+  | 'three-flat-material';
 
 const FACTORIES: Record<VisualizerName, () => Visualizer> = {
   'cong-cloud-orbit': createCongCloudOrbit,
@@ -154,6 +156,7 @@ const FACTORIES: Record<VisualizerName, () => Visualizer> = {
   'three-caustics': createThreeCaustics,
   'three-artwork-flux': createThreeArtworkFlux,
   'three-fresnel-core': createThreeFresnelCore,
+  'three-flat-material': createThreeFlatMaterial,
 };
 
 export function createVisualizer(name: VisualizerName): Visualizer {
