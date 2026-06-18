@@ -96,9 +96,12 @@ export PATH=/home/hermes/.hermes/node/bin:$PATH
 Or run as:
 
 ```bash
+export PATH=/home/hermes/.hermes/node/bin:$PATH
 PATH=/home/hermes/.hermes/node/bin:$PATH npm run verify
-source ~/.hermes/.env 2>/dev/null || export CLOUDFLARE_API_TOKEN=$(grep CLOUDFLARE_API_TOKEN ~/.bashrc | tail -1 | cut -d= -f2-); PATH=/home/hermes/.hermes/node/bin:$PATH wrangler pages deploy out
+source ~/.hermes/.env && PATH=/home/hermes/.hermes/node/bin:$PATH wrangler pages deploy out
 ```
+
+`~/.hermes/.env` contains `export CLOUDFLARE_API_TOKEN=...` — sourcing it is all that's needed.
 
 ## Git Remote
 
