@@ -266,6 +266,8 @@ function buildDefaultGenerativeSequence(
     'native-nightfall-ridges',
     'native-aurora-veil',
     'native-sidewind-drift',
+    'three-curl-flow',
+    'three-caustics',
   ];
   const introPool = introCandidates
     .filter((recipeId) => safePoolSet.has(recipeId) && !isImageDependentRecipe(recipeId));
