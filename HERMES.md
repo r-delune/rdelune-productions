@@ -8,12 +8,14 @@ This file is the standing prompt/contract. It defines process, budget, deploy ga
 
 The trigger prompt is just: **"Run a productions cycle."**
 
-On receiving that, do the following without asking for confirmation:
+On receiving that, do the following without asking for confirmation or outputting a plan:
 
 1. `cd ~/rdelune-productions && git pull origin main`
 2. Read context files in order (§ Canonical Context below).
 3. Pick the top item from the queue in `VISUAL_LEDGER.md`.
 4. Do the work, verify, commit, deploy, screenshot.
+
+**Stay silent while working.** Do not output a plan, a summary of what you read, or progress updates. The only message you send is the final completion report: recipe ID + screenshot. If something fails, send one short error message.
 
 ## Mission
 
