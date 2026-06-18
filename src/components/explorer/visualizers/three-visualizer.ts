@@ -80,6 +80,10 @@ export function createThreeVisualizer(makeScene: () => ThreeScene): Visualizer {
   let buildGeneration = -1;
   let disposed = false;
 
+  // Events that arrive before the scene is built (Three loads async). Drained
+  // in tryBuild() so section-cue and other pre-build events are not lost.
+  let pendingEvents: VisualEvent[] = [];
+
   // Last frame's signals, replayed once immediately after a (re)build so the
   // first rendered frame has live uniforms instead of construction defaults.
   let lastDt = 0;
@@ -117,6 +121,10 @@ export function createThreeVisualizer(makeScene: () => ThreeScene): Visualizer {
     buildGeneration = threeHost.generation;
     // Seed uniforms from the most recent frame so frame one isn't stale.
     scene.update(lastDt, lastParams, lastAudio, lastExclusion);
+    // Drain events queued before the scene was ready (e.g. section-cue fired
+    // right after stage creation, before the first draw()).
+    for (const event of pendingEvents) scene.onEvent(event);
+    pendingEvents = [];
   }
 
   return {
@@ -129,6 +137,7 @@ export function createThreeVisualizer(makeScene: () => ThreeScene): Visualizer {
       built = false;
       buildGeneration = -1;
       disposed = false;
+      pendingEvents = [];
       threeHost.ensure(); // begin the lazy Three load (no-op if already loading)
     },
 
@@ -186,7 +195,8 @@ export function createThreeVisualizer(makeScene: () => ThreeScene): Visualizer {
     },
 
     onEvent(event: VisualEvent) {
-      if (disposed || !built) return;
+      if (disposed) return;
+      if (!built) { pendingEvents.push(event); return; }
       scene.onEvent(event);
     },
 
@@ -198,6 +208,7 @@ export function createThreeVisualizer(makeScene: () => ThreeScene): Visualizer {
 
     destroy() {
       disposed = true;
+      pendingEvents = [];
       scene.dispose();
       built = false;
     },
