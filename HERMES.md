@@ -77,8 +77,11 @@ All work lives under `~/rdelune-productions/`. Key paths:
 - Registry: `src/components/explorer/visualizers/registry.ts` — **append only**
 - Tuning: `src/components/explorer/tuning.ts` — **append only**
 - Recipes: `src/components/explorer/runtime/recipes.ts` — **append only**
+- Storyboard profiles: `src/components/explorer/runtime/storyboard.ts` — **edit when adding a new sceneProfile**
 - Ledger: `src/components/explorer/VISUAL_LEDGER.md`
 - Reference kernel: `src/components/explorer/visualizers/three-curl-flow.ts`
+
+**Storyboard profile rule (critical — recipe will be invisible if skipped):** every `sceneProfile` used in a new recipe must appear in all 8 role lists in `ROLE_PROFILE_ORDER` and in the three energy arrays in `storyboard.ts`. The known profiles already registered are: `texture cloud particle ink smoke mist tide flow contour galaxy line grid rain storm spiral planet geology sparse`. If you pick a profile outside that list, add it to `storyboard.ts` as part of the same commit.
 
 Never recreate or truncate existing files. Add the minimum required lines.
 
@@ -94,7 +97,7 @@ Or run as:
 
 ```bash
 PATH=/home/hermes/.hermes/node/bin:$PATH npm run verify
-CLOUDFLARE_API_TOKEN=$(grep CLOUDFLARE_API_TOKEN ~/.bashrc | tail -1 | cut -d= -f2) PATH=/home/hermes/.hermes/node/bin:$PATH wrangler pages deploy out
+source ~/.hermes/.env 2>/dev/null || export CLOUDFLARE_API_TOKEN=$(grep CLOUDFLARE_API_TOKEN ~/.bashrc | tail -1 | cut -d= -f2-); PATH=/home/hermes/.hermes/node/bin:$PATH wrangler pages deploy out
 ```
 
 ## Git Remote

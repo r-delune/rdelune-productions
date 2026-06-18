@@ -153,7 +153,14 @@ A new kernel is wired through these files (Canvas2D and Three are identical here
    and (Three) a resolver in `tuning.ts`. Tuning is declarative artistic knobs only.
 4. **Recipe** — add to `RECIPES` in `runtime/recipes.ts` (kernel name + `tuningKey` + `sceneProfile` +
    `baseParams` + card styling). Recipes are the public visual vocabulary; tracks reference recipe IDs only.
-5. **Enroll in rotation = flags, not a list.** A recipe enters automatic rotation purely by being
+5. **Storyboard profile registration — REQUIRED.** The recipe's `sceneProfile` must appear in every role list
+   inside `ROLE_PROFILE_ORDER` in `runtime/storyboard.ts`. If the profile is absent, the storyboard picker
+   silently skips it and the recipe **never appears in production**, even though flags and rotation are correct.
+   The current complete profile list is: `texture cloud particle ink smoke mist tide flow contour galaxy line
+   grid rain storm spiral planet geology sparse`. If you add a recipe with a profile that is NOT in that list,
+   also add the profile to every role in `ROLE_PROFILE_ORDER` and to the three energy-priority arrays
+   (`LOW_ENERGY_PROFILES`, `MEDIUM_ENERGY_PROFILES`, `HIGH_ENERGY_PROFILES`) in the same file.
+6. **Enroll in rotation = flags, not a list.** A recipe enters automatic rotation purely by being
    `productionReady` (default) and `randomEligible` (default `true`) and not in `GLOBAL_DISABLED_RECIPE_IDS` —
    `listRandomRecipeIds` (`runtime/recipes.ts`) derives the live pool from those flags, and
    `useProductionVisualPlan` feeds it in. So a finished kernel appears once its recipe has those flags; **you do
