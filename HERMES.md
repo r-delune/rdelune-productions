@@ -143,6 +143,16 @@ Refresh model prices from the OpenRouter models API before changing routing assu
 https://openrouter.ai/api/v1/models
 ```
 
+## Headless Server — NO BROWSER
+
+This server has **no display, no GUI, and no browser**. Do NOT attempt to:
+- open any URL in a browser
+- take screenshots
+- download Chromium, Playwright, Puppeteer, or any browser binary
+- use any browser/web automation tool
+
+Visual verification is done by the owner locally. Your job is `npm run verify` + TypeScript review of the code.
+
 ## Branch And Deploy Policy
 
 Hermes commits directly to `main` and deploys after every verified cycle. No PRs, no branches, no human merge step. The verification gates below are the review.
@@ -152,8 +162,8 @@ Work flow:
 1. Do the work on `main`.
 2. Run all verification gates (see below). If any gate fails, fix before committing. Do not commit a broken state.
 3. Commit the smallest verified change.
-4. Run `npm run build` (already required by verify), then `wrangler pages deploy out` to deploy to Cloudflare Pages.
-5. After deploy, confirm `https://productions.rdelune.dev` loads without console errors.
+4. `source ~/.hermes/.env && PATH=/home/hermes/.hermes/node/bin:$PATH wrangler pages deploy out`
+5. Report completion via chat (text only — no screenshot).
 
 Do not create feature branches or open PRs. The gates are the review.
 
@@ -163,25 +173,20 @@ This is the standalone `rdelune-productions` repo (deploys to productions.rdelun
 
 Every cycle must pass all gates before deploy. These replace human review.
 
-1. `npm run verify` (lint + check-rotation + build — all must pass clean).
-2. For visual changes: `npm run dev:productions` (port 8084), open `/?lab=1`, start playback, check browser console errors.
-3. Self-score new/changed recipes against the **Aesthetic Rubric** in `VISUAL_LEDGER.md` — all 10 lines must pass.
-4. Confirm new/changed recipes:
-   - nonblank while loading;
-   - reduced-motion stable frame (dt = 0 produces a visible, non-blank frame);
-   - player UI remains readable;
-   - quality governor holds near 1.0;
-   - artwork-mangle/mosh recipes are never openers;
-   - GPU resources fully disposed in `destroy()`.
-5. Update `VISUAL_LEDGER.md` — Worklog entry + Coverage Map + Technique Coverage.
-6. Commit to `main`, then `wrangler pages deploy out`.
-7. After deploy, load `https://productions.rdelune.dev` and confirm no console errors.
-8. Report completion via chat. Send a message with:
-   - The recipe ID (e.g. `three-fresnel-core`)
-   - The production URL: `https://productions.rdelune.dev`
-   - The mood lab URL for review: `https://productions.rdelune.dev/?lab=1` (note: lab only works in dev — owner reviews via local dev server)
+1. `PATH=/home/hermes/.hermes/node/bin:$PATH npm run verify` — lint + check-rotation + build, all must pass clean.
+2. Read through the new kernel TypeScript and self-score against the **Aesthetic Rubric** in `VISUAL_LEDGER.md` — all 10 lines must pass. This is a code review, not a visual check.
+3. Confirm new/changed recipes in the code:
+   - no `paintFallback`-only path when built (nonblank guarantee)
+   - reduced-motion: `dt = 0` branch produces a static frame
+   - `destroy()`/`dispose()` frees all GPU resources
+   - `sceneProfile` is registered in `ROLE_PROFILE_ORDER` in `storyboard.ts`
+   - `startupEligible: true` on at least one Three.js recipe per cycle
+4. Update `VISUAL_LEDGER.md` — Worklog entry + Coverage Map + Technique Coverage + strike through the queue item.
+5. Commit to `main`, then deploy.
+6. Report completion via chat:
+   - Recipe ID shipped
    - One-line summary of what was built and which family gap it fills
-   - Example: "Deployed `three-fresnel-core`. Fills Orbit/Core + Sparse Minimal gap. Review at productions.rdelune.dev — open mood lab locally to inspect. Reply 'remove it' or 'tweak X' if needed."
+   - Example: "Shipped `three-flat-surface`. Fills Texture gap. Grain/erosion GPU surface, ping-pong FBO, section-arc dark → bright."
 
 If any gate cannot be completed, stop and report exactly what was skipped and why. Do not commit or deploy a partial cycle.
 
