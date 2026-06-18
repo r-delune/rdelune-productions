@@ -302,6 +302,7 @@ async function main() {
 
     const album = {
       name,
+      active: pick(a.active, a.isActive) ?? true,
       artist: pick(a.artist_name, a.artist) || null,
       date: pick(a.release_date, a.date) || null,
       status: a.status,

@@ -2,6 +2,7 @@
   "albums": [
     {
       "name": "Anna Doni",
+      "active": true,
       "artist": "roam",
       "date": "2014",
       "status": "WEBSITE",
@@ -152,6 +153,7 @@
     },
     {
       "name": "Back To Eden's Island",
+      "active": false,
       "artist": "Daria",
       "date": "2013",
       "status": "WEBSITE",
@@ -278,6 +280,7 @@
     },
     {
       "name": "Back to Sleep",
+      "active": true,
       "artist": "Brian Diolún",
       "date": "2010",
       "status": "WEBSITE",
@@ -510,6 +513,7 @@
     },
     {
       "name": "Banana Bread",
+      "active": true,
       "artist": "roam",
       "date": "2013",
       "status": "WEBSITE",
@@ -627,6 +631,7 @@
     },
     {
       "name": "cinematicparanoid",
+      "active": false,
       "artist": "???",
       "date": "2018",
       "status": "WEBSITE",
@@ -693,6 +698,7 @@
     },
     {
       "name": "Datum Fellow",
+      "active": true,
       "artist": "datum",
       "date": "2015",
       "status": "WEBSITE",
@@ -824,6 +830,7 @@
     },
     {
       "name": "Disco Layter",
+      "active": true,
       "artist": "relier",
       "date": "2018",
       "status": "WEBSITE",
@@ -935,6 +942,7 @@
     },
     {
       "name": "Dream Returner",
+      "active": true,
       "artist": "roam",
       "date": "2012",
       "status": "WEBSITE",
@@ -1097,6 +1105,7 @@
     },
     {
       "name": "Earli",
+      "active": true,
       "artist": "Brian Diolún",
       "date": "2010",
       "status": "WEBSITE",
@@ -1193,6 +1202,7 @@
     },
     {
       "name": "Flu Flu Ka Chu",
+      "active": true,
       "artist": "Brian Diolún",
       "date": "2024",
       "status": "WEBSITE",
@@ -1379,6 +1389,7 @@
     },
     {
       "name": "Gas Grey Gear",
+      "active": false,
       "artist": "Selophane Wire",
       "date": "2018",
       "status": "WEBSITE",
@@ -1435,6 +1446,7 @@
     },
     {
       "name": "Grunglor Paripus",
+      "active": true,
       "artist": "Brian Diolún",
       "date": "2010",
       "status": "WEBSITE",
@@ -1569,6 +1581,7 @@
     },
     {
       "name": "Hyena",
+      "active": false,
       "artist": "shinsplints",
       "date": "2023",
       "status": "WEBSITE",
@@ -1718,6 +1731,7 @@
     },
     {
       "name": "Hải Châu",
+      "active": false,
       "artist": "Brian Diolún",
       "date": "2015",
       "status": "WEBSITE",
@@ -1881,6 +1895,7 @@
     },
     {
       "name": "Iiji",
+      "active": false,
       "artist": "stirros",
       "date": "2022",
       "status": "WEBSITE",
@@ -1970,6 +1985,7 @@
     },
     {
       "name": "JezELetta",
+      "active": true,
       "artist": "roam",
       "date": "2015",
       "status": "WEBSITE",
@@ -2154,6 +2170,7 @@
     },
     {
       "name": "Key Earl34",
+      "active": true,
       "artist": "ROAM",
       "date": "2011",
       "status": "WEBSITE",
@@ -2312,6 +2329,7 @@
     },
     {
       "name": "Kind Of What",
+      "active": false,
       "artist": "Selophane Wire",
       "date": "2019",
       "status": "WEBSITE",
@@ -2423,6 +2441,7 @@
     },
     {
       "name": "Leli's Spacemata",
+      "active": false,
       "artist": "roam",
       "date": "2019",
       "status": "WEBSITE",
@@ -2511,6 +2530,7 @@
     },
     {
       "name": "Motorway",
+      "active": false,
       "artist": "Brian Diolún",
       "date": "2017",
       "status": "WEBSITE",
@@ -2741,6 +2761,7 @@
     },
     {
       "name": "Outrageous Ones",
+      "active": true,
       "artist": "roam",
       "date": "2012",
       "status": "WEBSITE",
@@ -2852,6 +2873,7 @@
     },
     {
       "name": "Plants & Savages",
+      "active": true,
       "artist": "Uisce",
       "date": "2021",
       "status": "WEBSITE",
@@ -2920,6 +2942,7 @@
     },
     {
       "name": "Raindrop Window Vol.1",
+      "active": true,
       "artist": "Brian Diolún",
       "date": "2010",
       "status": "WEBSITE",
@@ -3084,6 +3107,7 @@
     },
     {
       "name": "Raindrop Window Vol.2",
+      "active": false,
       "artist": "Brian Diolún",
       "date": "2010",
       "status": "WEBSITE",
@@ -3215,6 +3239,7 @@
     },
     {
       "name": "Ready Up The Shape Vol.1",
+      "active": true,
       "artist": "Roam",
       "date": "2013",
       "status": "WEBSITE",
@@ -3321,6 +3346,7 @@
     },
     {
       "name": "Ready Up The Shape Vol.2",
+      "active": false,
       "artist": "roam",
       "date": "2015",
       "status": "WEBSITE",
@@ -3376,6 +3402,7 @@
     },
     {
       "name": "Ready Up The Shape Vol.3",
+      "active": true,
       "artist": "roam",
       "date": "2016",
       "status": "WEBSITE",
@@ -3514,6 +3541,7 @@
     },
     {
       "name": "relier",
+      "active": false,
       "artist": "relier",
       "date": "2018",
       "status": "WEBSITE",
@@ -3585,6 +3613,7 @@
     },
     {
       "name": "Role Pools",
+      "active": true,
       "artist": "Daria",
       "date": "2024",
       "status": "WEBSITE",
@@ -3747,6 +3776,7 @@
     },
     {
       "name": "Rona Jams Vol.1",
+      "active": true,
       "artist": "Brian Diolún",
       "date": "2021",
       "status": "WEBSITE",
@@ -3901,6 +3931,7 @@
     },
     {
       "name": "Rona Tapes - Forever Sunday",
+      "active": true,
       "artist": null,
       "date": "2019",
       "status": "WEBSITE",
@@ -3988,6 +4019,7 @@
     },
     {
       "name": "Snow",
+      "active": true,
       "artist": "santaram",
       "date": "2018",
       "status": "WEBSITE",
@@ -4157,6 +4189,7 @@
     },
     {
       "name": "Spirit Catching",
+      "active": false,
       "artist": "roam",
       "date": "2016",
       "status": "WEBSITE",
@@ -4228,6 +4261,7 @@
     },
     {
       "name": "Ssssi",
+      "active": false,
       "artist": "shinsplints",
       "date": "2016",
       "status": "WEBSITE",
@@ -4294,6 +4328,7 @@
     },
     {
       "name": "Suas Anseo",
+      "active": true,
       "artist": "stirros",
       "date": "2023",
       "status": "WEBSITE",
@@ -4431,6 +4466,7 @@
     },
     {
       "name": "Sun Interfaces",
+      "active": true,
       "artist": "roam",
       "date": "2015",
       "status": "WEBSITE",
@@ -4523,6 +4559,7 @@
     },
     {
       "name": "Tapey Sunday",
+      "active": false,
       "artist": "Brian Diolún",
       "date": "2020",
       "status": "WEBSITE",
@@ -4656,6 +4693,7 @@
     },
     {
       "name": "Telodyne Celcia",
+      "active": true,
       "artist": "roam",
       "date": "2014",
       "status": "WEBSITE",
@@ -4830,6 +4868,7 @@
     },
     {
       "name": "The Coffee & The Cookies Vol 1",
+      "active": false,
       "artist": "roam",
       "date": "2015",
       "status": "WEBSITE",
@@ -4965,6 +5004,7 @@
     },
     {
       "name": "The Luminous Bazaar",
+      "active": true,
       "artist": "roam",
       "date": "2019",
       "status": "WEBSITE",
@@ -5142,6 +5182,7 @@
     },
     {
       "name": "The Other Side Of August",
+      "active": true,
       "artist": "roam",
       "date": "2015",
       "status": "WEBSITE",
@@ -5228,6 +5269,7 @@
     },
     {
       "name": "The Sewing Machine",
+      "active": false,
       "artist": "roam",
       "date": "2015",
       "status": "WEBSITE",
@@ -5355,6 +5397,7 @@
     },
     {
       "name": "True Blue",
+      "active": true,
       "artist": "santaram",
       "date": "2022",
       "status": "WEBSITE",
@@ -5501,6 +5544,7 @@
     },
     {
       "name": "Unda Wu Wu",
+      "active": true,
       "artist": "relier",
       "date": "2018",
       "status": "WEBSITE",
@@ -5638,6 +5682,7 @@
     },
     {
       "name": "Vũ",
+      "active": true,
       "artist": "santaram",
       "date": "2025",
       "status": "WEBSITE",
@@ -5739,6 +5784,7 @@
     },
     {
       "name": "Wirey Mesh",
+      "active": true,
       "artist": "Selophane Wire",
       "date": "2019",
       "status": "WEBSITE",
