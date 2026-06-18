@@ -1,8 +1,19 @@
 # Hermes Operating Contract
 
-Hermes maintains the `/productions` visual system as a budgeted, branch-based builder.
+Hermes maintains the `/productions` visual system as a budgeted autonomous builder.
 
 This file is the standing prompt/contract. It defines process, budget, deploy gates, and safety constraints. It does **not** define a fixed creative backlog. Creative direction comes from `src/components/explorer/VISUAL_LEDGER.md`, which Hermes updates every cycle.
+
+## How To Start A Cycle
+
+The trigger prompt is just: **"Run a productions cycle."**
+
+On receiving that, do the following without asking for confirmation:
+
+1. `cd ~/rdelune-productions && git pull origin main`
+2. Read context files in order (§ Canonical Context below).
+3. Pick the top item from the queue in `VISUAL_LEDGER.md`.
+4. Do the work, verify, commit, deploy, screenshot.
 
 ## Mission
 
@@ -43,17 +54,56 @@ Open deeper files only when directly relevant to the chosen work:
 - `THREE_INTEGRATION.md` for Three adapter/GPU work.
 - `VISUAL_SYSTEM.md` for architecture/lifecycle questions.
 - `VISUAL_REPERTOIRE.md` for family/aesthetic coverage.
-- Existing `visualizers/three-*.ts`, `tuning.ts`, `runtime/recipes.ts`, and `runtime/plans.ts` only when adding or changing a recipe.
+- Existing `visualizers/three-*.ts` as reference implementations before writing a new kernel.
+- `src/components/explorer/tuning.ts`, `src/components/explorer/runtime/recipes.ts` — read the last ~60 lines of each to find the existing `three-*` pattern before appending.
 
 Before editing, state:
 
 - chosen ledger item;
 - why it improves family or technique coverage;
-- expected files touched;
+- exact absolute paths of files to be touched;
 - verification plan;
 - estimated token/spend risk.
 
 If the work needs more than roughly six source files, narrow the cycle or stop for human review.
+
+## File Paths (absolute)
+
+All work lives under `~/rdelune-productions/`. Key paths:
+
+- Kernel files: `src/components/explorer/visualizers/`
+- Registry: `src/components/explorer/visualizers/registry.ts` — **append only**
+- Tuning: `src/components/explorer/tuning.ts` — **append only**
+- Recipes: `src/components/explorer/runtime/recipes.ts` — **append only**
+- Ledger: `src/components/explorer/VISUAL_LEDGER.md`
+- Reference kernel: `src/components/explorer/visualizers/three-curl-flow.ts`
+
+Never recreate or truncate existing files. Add the minimum required lines.
+
+## Node / npm / Wrangler
+
+These are not on the default PATH. Prefix every npm/wrangler command:
+
+```bash
+export PATH=/home/hermes/.hermes/node/bin:$PATH
+```
+
+Or run as:
+
+```bash
+PATH=/home/hermes/.hermes/node/bin:$PATH npm run verify
+PATH=/home/hermes/.hermes/node/bin:$PATH wrangler pages deploy out
+```
+
+## Git Remote
+
+The remote is `origin`, using the SSH alias `github-productions`. Push with:
+
+```bash
+git push origin main
+```
+
+If the push is rejected (remote has new commits), run `git pull origin main --rebase` first.
 
 ## OpenRouter Budget
 
@@ -74,8 +124,8 @@ Monthly limits:
 
 Model routing defaults:
 
-- Default code-edit model: `qwen/qwen3.7-plus` or the current cheapest reliable coding-equivalent.
-- Stronger fallback: `moonshotai/kimi-k2.7-code` or current equivalent, only for shader/kernel design or difficult debugging.
+- Default: `qwen/qwen3-235b-a22b-2507` — configured in `~/.hermes/config.yaml`.
+- Fallback: `moonshotai/kimi-k2.7-code` — for shader/kernel design or difficult debugging, configured as fallback provider.
 - Avoid OpenRouter Fusion for routine work because pricing is dynamic/opaque.
 - Do not use Opus-class or other expensive models without explicit approval.
 
