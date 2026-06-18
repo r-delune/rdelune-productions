@@ -332,17 +332,14 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
         };
       }
     } catch {
-      // Ignore and fall back to MediaElementSource.
+      // captureStream unavailable or CORS-blocked.
     }
 
-    try {
-      return {
-        node: context.createMediaElementSource(audio),
-        connectAnalyserToOutput: true,
-      };
-    } catch {
-      return null;
-    }
+    // Do NOT fall back to createMediaElementSource — it hijacks the audio
+    // element's output routing through the Web Audio graph, which causes
+    // sample-rate changes that distort audio and interfere with other browser
+    // audio. If captureStream isn't available, skip analysis entirely.
+    return null;
   }, []);
 
   const ensureAudioAnalysis = useCallback(() => {
@@ -368,11 +365,8 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
         return;
       }
 
-      const { node: source, connectAnalyserToOutput } = analysisSource;
+      const { node: source } = analysisSource;
       source.connect(analyser);
-      if (connectAnalyserToOutput) {
-        analyser.connect(context.destination);
-      }
 
       const binCount = analyser.frequencyBinCount;
       audioContextRef.current = context;
