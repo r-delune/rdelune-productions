@@ -94,7 +94,7 @@ Or run as:
 
 ```bash
 PATH=/home/hermes/.hermes/node/bin:$PATH npm run verify
-PATH=/home/hermes/.hermes/node/bin:$PATH wrangler pages deploy out
+CLOUDFLARE_API_TOKEN=$(grep CLOUDFLARE_API_TOKEN ~/.bashrc | tail -1 | cut -d= -f2) PATH=/home/hermes/.hermes/node/bin:$PATH wrangler pages deploy out
 ```
 
 ## Git Remote
