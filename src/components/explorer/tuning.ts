@@ -557,6 +557,13 @@ export interface ThreeCausticsTuning {
   additiveAlpha: number;  // glint additive gain
 }
 
+export interface ThreeFresnelCoreTuning {
+  kernel: 'three-fresnel-core';
+  coreRadius: number;   // normalised SDF sphere radius (0..1 screen-height units)
+  rimWidth: number;     // Fresnel rim falloff width relative to radius
+  glowRadius: number;   // outer glow cloud extent relative to radius
+}
+
 export interface ThreeArtworkFluxTuning {
   kernel: 'three-artwork-flux';
   memory: number;               // feedback persistence
@@ -602,7 +609,8 @@ export type VisualizerTuningConfig =
   | ThreeCurlFlowTuning
   | ThreeVolumetricFogTuning
   | ThreeCausticsTuning
-  | ThreeArtworkFluxTuning;
+  | ThreeArtworkFluxTuning
+  | ThreeFresnelCoreTuning;
 
 export const VISUALIZER_TUNINGS = {
   'cong-cloud-orbit-default': {
@@ -1960,6 +1968,12 @@ export const VISUALIZER_TUNINGS = {
     chromaticAberration: 0.82,
     vignette: 0.42,
   },
+  'three-fresnel-core-default': {
+    kernel: 'three-fresnel-core',
+    coreRadius: 0.28,
+    rimWidth: 0.18,
+    glowRadius: 0.55,
+  },
 } as const;
 
 export type VisualizerTuningKey = keyof typeof VISUALIZER_TUNINGS;
@@ -2182,6 +2196,12 @@ export function resolveThreeArtworkFluxTuning(tuning?: VisualizerTuningConfig): 
   return tuning?.kernel === 'three-artwork-flux'
     ? tuning
     : VISUALIZER_TUNINGS['three-artwork-flux-default'];
+}
+
+export function resolveThreeFresnelCoreTuning(tuning?: VisualizerTuningConfig): ThreeFresnelCoreTuning {
+  return tuning?.kernel === 'three-fresnel-core'
+    ? tuning
+    : VISUALIZER_TUNINGS['three-fresnel-core-default'];
 }
 
 export function describeVisualizerTuning(tuningKey?: VisualizerTuningKey): string {
