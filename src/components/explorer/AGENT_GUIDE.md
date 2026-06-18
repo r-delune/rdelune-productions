@@ -153,8 +153,13 @@ A new kernel is wired through these files (Canvas2D and Three are identical here
    and (Three) a resolver in `tuning.ts`. Tuning is declarative artistic knobs only.
 4. **Recipe** — add to `RECIPES` in `runtime/recipes.ts` (kernel name + `tuningKey` + `sceneProfile` +
    `baseParams` + card styling). Recipes are the public visual vocabulary; tracks reference recipe IDs only.
-5. **Pool slot** — add the recipe to `GENERATIVE_VARIETY_SEQUENCE` in `runtime/plans.ts` so it becomes
-   eligible in variety storyboards. (Heavy mosh recipes join accent/mid-section pools only.)
+5. **Enroll in rotation = flags, not a list.** A recipe enters automatic rotation purely by being
+   `productionReady` (default) and `randomEligible` (default `true`) and not in `GLOBAL_DISABLED_RECIPE_IDS` —
+   `listRandomRecipeIds` (`runtime/recipes.ts`) derives the live pool from those flags, and
+   `useProductionVisualPlan` feeds it in. So a finished kernel appears once its recipe has those flags; **you do
+   NOT need to touch `GENERATIVE_VARIETY_SEQUENCE`** (that list is only a fallback ordering). Image-dependent
+   recipes auto-route to the mosh-accent pool (never opener). Run **`npm run check-rotation`** (part of
+   `npm run verify`) — it fails if a finished recipe is unreachable and warns about kernels with no recipe.
 
 **+1 — Mosh rule:** gentle artwork openers may open generated tracks (`pickArtworkOpener`); the heavy
 artwork-mosh accent is a seeded ~20% replacement at section index 1 (`applyGeneratedMoshAccent`) and must

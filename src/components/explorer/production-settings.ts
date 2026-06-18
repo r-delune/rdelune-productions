@@ -27,7 +27,11 @@ type RawProductionsVisualSettings = Partial<ProductionsVisualSettings> & {
 export const PRODUCTIONS_VISUAL_SETTINGS_STORAGE_KEY = 'productions-visual-settings-v1';
 export const PRODUCTIONS_VISUAL_SETTINGS_SAVED_AT_STORAGE_KEY = 'productions-visual-settings-saved-at-v1';
 export const PRODUCTIONS_VISUAL_SETTINGS_VERSION_STORAGE_KEY = 'productions-visual-settings-version-v1';
-export const PRODUCTIONS_SETTINGS_BUNDLE_VERSION = 5;
+// Snapshot of the auto-eligible recipe set the saved deck was last reconciled
+// against. Lets newly-finished sketches auto-enroll into a returning user's deck
+// without clobbering their curation. See reconcileAutomaticDeckEnrollment.
+export const PRODUCTIONS_AUTOMATIC_DECK_KNOWN_STORAGE_KEY = 'productions-automatic-deck-known-v1';
+export const PRODUCTIONS_SETTINGS_BUNDLE_VERSION = 6;
 export const LEGACY_HIDDEN_REVIEW_SKETCHES_STORAGE_KEY = 'productions-hidden-review-sketches-v1';
 
 const LEGACY_STARTUP_SKETCH_DECK: readonly ExplorerRecipeId[] = [
@@ -132,6 +136,57 @@ function readLegacyHiddenReviewSketches(): ExplorerRecipeId[] {
   }
 }
 
+function readKnownEligibleSnapshot(): ExplorerRecipeId[] | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(PRODUCTIONS_AUTOMATIC_DECK_KNOWN_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeKnownEligibleSnapshot(ids: readonly ExplorerRecipeId[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(PRODUCTIONS_AUTOMATIC_DECK_KNOWN_STORAGE_KEY, JSON.stringify([...ids]));
+  } catch {
+    // Ignore local preference persistence failures.
+  }
+}
+
+/**
+ * Auto-enroll newly-finished sketches into a returning user's deck without
+ * clobbering their curation. The current auto-eligible universe is
+ * FALLBACK_AUTOMATIC_SKETCH_DECK (every randomEligible, non-image recipe). We
+ * persist a snapshot of that universe; any recipe that becomes eligible *after*
+ * the snapshot is unioned into the saved deck on the next load (skipping ones the
+ * user has explicitly disabled). On first run the snapshot is simply seeded —
+ * existing curated decks are preserved, only future additions enroll. Returns the
+ * settings with the reconciled deck and advances the persisted snapshot.
+ */
+function reconcileAutomaticDeckEnrollment(settings: ProductionsVisualSettings): ProductionsVisualSettings {
+  if (typeof window === 'undefined') return settings;
+  const currentEligible = FALLBACK_AUTOMATIC_SKETCH_DECK;
+  const knownSnapshot = readKnownEligibleSnapshot();
+  writeKnownEligibleSnapshot(currentEligible);
+
+  // First run under the snapshot scheme: seed only, preserve the deck as-is.
+  if (knownSnapshot === null) return settings;
+
+  const knownSet = new Set(knownSnapshot);
+  const disabledSet = new Set(settings.localDisabledSketches);
+  const newlyEligible = currentEligible.filter((id) => !knownSet.has(id) && !disabledSet.has(id));
+  if (!newlyEligible.length) return settings;
+
+  return {
+    ...settings,
+    automaticSketchDeck: Array.from(new Set([...settings.automaticSketchDeck, ...newlyEligible])),
+  };
+}
+
 function mergeLocalWithShippedSettings(localSettings: ProductionsVisualSettings | null): ProductionsVisualSettings {
   if (!localSettings) return DEFAULT_PRODUCTIONS_VISUAL_SETTINGS;
   return normalizeProductionsVisualSettings({
@@ -165,13 +220,11 @@ export function readProductionsVisualSettings(): ProductionsVisualSettings {
       : null;
     const legacyHidden = readLegacyHiddenReviewSketches();
     const merged = mergeLocalWithShippedSettings(localSettings);
+    const withLegacyHidden = legacyHidden.length
+      ? { ...merged, localDisabledSketches: Array.from(new Set([...merged.localDisabledSketches, ...legacyHidden])) }
+      : merged;
 
-    if (legacyHidden.length) {
-      const localDisabledSketches = Array.from(new Set([...merged.localDisabledSketches, ...legacyHidden]));
-      return { ...merged, localDisabledSketches };
-    }
-
-    return merged;
+    return reconcileAutomaticDeckEnrollment(withLegacyHidden);
   } catch {
     return DEFAULT_PRODUCTIONS_VISUAL_SETTINGS;
   }
@@ -195,6 +248,7 @@ export function resetLocalProductionsVisualSettings(): ProductionsVisualSettings
       window.localStorage.removeItem(PRODUCTIONS_VISUAL_SETTINGS_STORAGE_KEY);
       window.localStorage.removeItem(PRODUCTIONS_VISUAL_SETTINGS_VERSION_STORAGE_KEY);
       window.localStorage.removeItem(PRODUCTIONS_VISUAL_SETTINGS_SAVED_AT_STORAGE_KEY);
+      window.localStorage.removeItem(PRODUCTIONS_AUTOMATIC_DECK_KNOWN_STORAGE_KEY);
       window.localStorage.removeItem(LEGACY_HIDDEN_REVIEW_SKETCHES_STORAGE_KEY);
     } catch {
       // Ignore local preference persistence failures.

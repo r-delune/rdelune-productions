@@ -158,3 +158,8 @@ export function createVisualizer(name: VisualizerName): Visualizer {
   if (!factory) throw new Error(`Unknown visualizer: ${name}`);
   return factory();
 }
+
+/** Every registered kernel name. Used by scripts/check-rotation for reachability. */
+export function listVisualizerNames(): VisualizerName[] {
+  return Object.keys(FACTORIES) as VisualizerName[];
+}

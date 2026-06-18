@@ -86,6 +86,19 @@ const GENERATIVE_VARIETY_SEQUENCE: readonly ExplorerRecipeId[] = [
   'three-caustics',
 ] as const;
 
+/**
+ * Every recipe id named by a built-in rotation pool (openers, mosh accents, the
+ * generative-variety fallback). Used by scripts/check-rotation to treat
+ * authored-pool membership as a valid reachability path. NOTE: these pools are
+ * only fallbacks — the live rotation is flag-derived (listRandomRecipeIds), so a
+ * recipe with `randomEligible !== false` is reachable whether or not it is here.
+ */
+export const STATIC_ROTATION_POOL_IDS: readonly ExplorerRecipeId[] = Array.from(new Set([
+  ...ARTWORK_OPENER_RECIPES,
+  ...GENERATED_MOSH_ACCENT_RECIPES,
+  ...GENERATIVE_VARIETY_SEQUENCE,
+]));
+
 const DEFAULT_TRANSITION_MS = 1800;
 const GENERATED_CHAPTER_TRANSITION_MS = 3000;
 const GENERATED_INTERNAL_TRANSITION_MS = 1200;

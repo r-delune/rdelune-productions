@@ -12,7 +12,8 @@
     "build": "node scripts/fetch-tracks.mjs && NEXT_DIST_DIR=.next next build",
     "start": "NEXT_DIST_DIR=.next next start -p 8084",
     "lint": "eslint src/ functions/",
-    "verify": "npm run lint && npm run build",
+    "check-rotation": "tsx scripts/check-rotation.mts",
+    "verify": "npm run lint && npm run check-rotation && npm run build",
     "apply-productions-settings": "node scripts/apply-productions-settings.mjs"
   },
   "dependencies": {
@@ -34,6 +35,7 @@
     "js-yaml": "^4.1.1",
     "postcss": "^8.4.0",
     "tailwindcss": "^3.4.0",
+    "tsx": "^4.22.4",
     "typescript": "5.9.3"
   }
 }

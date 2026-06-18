@@ -141,7 +141,11 @@ Identical to a native kernel. A new Three sketch touches:
 2. `visualizers/registry.ts` — name added to the `VisualizerName` union and the `FACTORIES` map.
 3. `tuning.ts` — interface, preset, and resolver entry.
 4. `runtime/recipes.ts` — a recipe choosing the kernel, tuning key, base params, and scene profile.
-5. `runtime/plans.ts` — a pool slot in `GENERATIVE_VARIETY_SEQUENCE` so it enters automatic rotation.
+5. **Rotation enrollment is by flags, not by editing a list.** The recipe enters the live rotation simply by
+   being `productionReady` (default) + `randomEligible` (default `true`) + not globally disabled —
+   `listRandomRecipeIds` derives the deck from those flags. `GENERATIVE_VARIETY_SEQUENCE` is only a fallback
+   ordering; you do **not** need to add to it. Image-dependent recipes auto-route to the mosh accent pool
+   (never opener). `npm run check-rotation` (in `npm run verify`) fails if a finished recipe is unreachable.
 
 Reviewable by recipe ID in the localhost `M` mood lab. Recipes must be production-ready, random-eligible, globally enabled, locally visible, and non-image-based to qualify for the automatic deck.
 

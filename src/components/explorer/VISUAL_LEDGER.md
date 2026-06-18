@@ -25,7 +25,7 @@
 4. **Do the work.** New → follow `THREE_GENERATION_PROMPT.md` + `THREE_INTEGRATION.md`. Canvas2D work is legacy maintenance only. Improvement → follow the Improvement Protocol below.
 5. **Self-review** against the **Aesthetic Rubric** below. Fail any line → revise and re-review. Don't ship a
    sketch that fails the rubric.
-6. **Verify** per `AGENT_GUIDE.md` §8 and `HERMES.md` deploy gates (lint, build, mood lab `M`, governor ~1.0, reduced-motion, no console errors).
+6. **Verify** with `npm run verify` (lint + `check-rotation` reachability + build) plus `AGENT_GUIDE.md` §8 and `HERMES.md` deploy gates (mood lab `M`, governor ~1.0, reduced-motion, no console errors). A finished sketch enters rotation by flags (`productionReady` + `randomEligible`), not by editing `GENERATIVE_VARIETY_SEQUENCE`; `check-rotation` fails if a finished recipe is unreachable.
 7. **Log & rebalance.** Append a **Worklog** entry, update the **Coverage Map**, and add any new improvement
    candidates you noticed while working.
 
