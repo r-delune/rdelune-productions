@@ -22,7 +22,7 @@ If the agent supports `/goal`, start every cycle with:
 ```text
 /goal Ship one verified /productions visual-system improvement.
 Budget: stay under the configured per-cycle OpenRouter spend cap.
-Stop after lint/build/smoke/ledger update.
+Stop after lint/build/smoke/ledger update, commit to main, and deploy.
 ```
 
 Use `/goal` per cycle, not as one permanent forever task. A cycle ends after verification and a ledger entry.
@@ -87,46 +87,40 @@ https://openrouter.ai/api/v1/models
 
 ## Branch And Deploy Policy
 
-Main branch is production-affecting. Normal Hermes work must not push directly to `main`.
+Hermes commits directly to `main` and deploys after every verified cycle. No PRs, no branches, no human merge step. The verification gates below are the review.
 
 Work flow:
 
-1. Create/use `hermes/productions-<short-task-name>`.
-2. Commit the smallest verified change.
-3. Push the branch.
-4. Open a PR or hand off the branch.
-5. Merge to `main` only after checks and explicit approval, unless an autonomous deploy window has been separately granted.
+1. Do the work on `main`.
+2. Run all verification gates (see below). If any gate fails, fix before committing. Do not commit a broken state.
+3. Commit the smallest verified change.
+4. Run `npm run build` (already required by verify), then `wrangler pages deploy out` to deploy to Cloudflare Pages.
+5. After deploy, confirm `https://productions.rdelune.dev` loads without console errors.
 
-Cloudflare/main flow:
-
-- `wrangler.toml` points Cloudflare Pages at the static `out/` build output.
-- `CLAUDE.md` records that `main` autodeploys.
-- After merge/deploy, check production root `/` (productions.rdelune.dev), then run one playback smoke test if browser access is available.
-
-Direct deploy mode:
-
-- Use `wrangler pages deploy out` only after `npm run build` succeeds.
-- Treat direct deploy as explicit/manual mode, not the default.
+Do not create feature branches or open PRs. The gates are the review.
 
 This is the standalone `rdelune-productions` repo (deploys to productions.rdelune.dev via Cloudflare Pages). It is the sole home for the visual system; the marketing site (`rdelune-website`) only edge-redirects `/productions` here.
 
 ## Verification Gates
 
-Before handoff or deploy:
+Every cycle must pass all gates before deploy. These replace human review.
 
-1. `npm run lint`
-2. `npm run build`
-3. For visual changes: `npm run dev:productions` (port 8084), open `/?lab=1`, start playback, and check browser console errors.
+1. `npm run verify` (lint + check-rotation + build — all must pass clean).
+2. For visual changes: `npm run dev:productions` (port 8084), open `/?lab=1`, start playback, check browser console errors.
+3. Self-score new/changed recipes against the **Aesthetic Rubric** in `VISUAL_LEDGER.md` — all 10 lines must pass.
 4. Confirm new/changed recipes:
    - nonblank while loading;
-   - reduced-motion stable frame;
+   - reduced-motion stable frame (dt = 0 produces a visible, non-blank frame);
    - player UI remains readable;
-   - quality governor remains near target;
-   - image/artwork-mangle recipes are never openers;
-   - GPU resources are disposed.
-5. Update `VISUAL_LEDGER.md` with Worklog and coverage changes.
+   - quality governor holds near 1.0;
+   - artwork-mangle/mosh recipes are never openers;
+   - GPU resources fully disposed in `destroy()`.
+5. Update `VISUAL_LEDGER.md` — Worklog entry + Coverage Map + Technique Coverage.
+6. Commit to `main`, then `wrangler pages deploy out`.
+7. After deploy, load `https://productions.rdelune.dev` and confirm no console errors.
+8. Take a screenshot of the new sketch rendering in the mood lab (`/?lab=1`) and send it via chat, with the recipe ID clearly stated. Example: "Deployed `three-fresnel-core`. Screenshot: [image]. Reply with 'remove it' or 'tweak X' if needed."
 
-If verification cannot be completed, report exactly what was skipped and why. Do not deploy.
+If any gate cannot be completed, stop and report exactly what was skipped and why. Do not commit or deploy a partial cycle.
 
 ## Creative Rules
 

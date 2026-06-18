@@ -788,7 +788,7 @@ const RECIPES: Readonly<Record<string, ExplorerRecipe>> = {
     cardBorder: 'rgba(150, 170, 215, 0.16)',
     tuningKey: 'three-curl-flow-default',
     productionReady: true,
-    startupEligible: false,
+    startupEligible: true,
     randomEligible: true,
   },
   'three-volumetric-fog': {
