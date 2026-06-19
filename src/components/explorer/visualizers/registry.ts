@@ -24,23 +24,20 @@ import { createSmokePlanes } from './smoke-planes';
 import { createPerlinWarpMesh } from './perlin-warp-mesh';
 import { createPerlinFlowField } from './perlin-flow-field';
 import { createPerlinTerrainErode } from './perlin-terrain-erode';
-import { createCongParticleLandscape } from './cong-particle-landscape';
-import { createCongImageDatamoshLandscape } from './cong-image-datamosh-landscape';
 import { createOrganicDrift } from './organic-drift';
 import { createNativeReactionVeil } from './native-reaction-veil';
 import { createNativeAttractorDrift } from './native-attractor-drift';
 import { createNativeAuroraVeil } from './native-aurora-veil';
-import { createNativeSidewindDrift } from './native-sidewind-drift';
 import { createNativeGravityCurrent } from './native-gravity-current';
 import { createThreeCurlFlow } from './three-curl-flow';
 import { createThreeVolumetricFog } from './three-volumetric-fog';
 import { createThreeCaustics } from './three-caustics';
 import { createThreeArtworkFlux } from './three-artwork-flux';
-import { createThreeFresnelCore } from './three-fresnel-core';
 import { createThreeFlatMaterial } from './three-flat-material';
 import { createThreeLightRays } from './three-light-rays';
 import { createThreeSparseVeil } from './three-sparse-veil';
 import { createThreeReactionDiffusion } from './three-reaction-diffusion';
+import { createThreeFluidAdvection } from './three-fluid-advection';
 
 export type VisualizerName =
   | 'cong-cloud-orbit'
@@ -64,23 +61,20 @@ export type VisualizerName =
   | 'perlin-warp-mesh'
   | 'perlin-flow-field'
   | 'perlin-terrain-erode'
-  | 'cong-particle-landscape'
-  | 'cong-image-datamosh-landscape'
   | 'organic-drift'
   | 'native-reaction-veil'
   | 'native-attractor-drift'
   | 'native-aurora-veil'
-  | 'native-sidewind-drift'
   | 'native-gravity-current'
   | 'three-curl-flow'
   | 'three-volumetric-fog'
   | 'three-caustics'
   | 'three-artwork-flux'
-  | 'three-fresnel-core'
   | 'three-flat-material'
   | 'three-light-rays'
   | 'three-sparse-veil'
-  | 'three-reaction-diffusion';
+  | 'three-reaction-diffusion'
+  | 'three-fluid-advection';
 
 const FACTORIES: Record<VisualizerName, () => Visualizer> = {
   'cong-cloud-orbit': createCongCloudOrbit,
@@ -104,23 +98,20 @@ const FACTORIES: Record<VisualizerName, () => Visualizer> = {
   'perlin-warp-mesh': createPerlinWarpMesh,
   'perlin-flow-field': createPerlinFlowField,
   'perlin-terrain-erode': createPerlinTerrainErode,
-  'cong-particle-landscape': createCongParticleLandscape,
-  'cong-image-datamosh-landscape': createCongImageDatamoshLandscape,
   'organic-drift': createOrganicDrift,
   'native-reaction-veil': createNativeReactionVeil,
   'native-attractor-drift': createNativeAttractorDrift,
   'native-aurora-veil': createNativeAuroraVeil,
-  'native-sidewind-drift': createNativeSidewindDrift,
   'native-gravity-current': createNativeGravityCurrent,
   'three-curl-flow': createThreeCurlFlow,
   'three-volumetric-fog': createThreeVolumetricFog,
   'three-caustics': createThreeCaustics,
   'three-artwork-flux': createThreeArtworkFlux,
-  'three-fresnel-core': createThreeFresnelCore,
   'three-flat-material': createThreeFlatMaterial,
   'three-light-rays': createThreeLightRays,
   'three-sparse-veil': createThreeSparseVeil,
   'three-reaction-diffusion': createThreeReactionDiffusion,
+  'three-fluid-advection': createThreeFluidAdvection,
 };
 
 export function createVisualizer(name: VisualizerName): Visualizer {

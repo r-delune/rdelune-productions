@@ -12,6 +12,7 @@ const FETCH_TIMEOUT_MS = Number.parseInt(process.env.SHOWCASE_FETCH_TIMEOUT_MS ?
 const RUNNING_ON_CLOUDFLARE_PAGES = process.env.CF_PAGES === '1';
 const SHOULD_VALIDATE_TRACK_URLS = process.env.VALIDATE_TRACK_URLS === '1' || !RUNNING_ON_CLOUDFLARE_PAGES;
 const REQUIRE_PUBLIC_MP3 = process.env.REQUIRE_PUBLIC_MP3 !== '0';
+const TRUST_DETECTED_SECTION_TIMES = process.env.TRUST_DETECTED_SECTION_TIMES === '1';
 
 /** Pick first defined value (handles snake_case → camelCase transition) */
 const pick = (...vals) => vals.find((v) => v !== undefined) ?? null;
@@ -23,19 +24,27 @@ function assignIfDefined(target, key, value) {
 // Mirror of src/components/explorer/runtime/section-times.ts so showcase.json
 // ships clean, sorted, in-bounds, de-jittered boundaries. Keep the two in sync.
 const MIN_SECTION_GAP_SECONDS = 0.75;
-const END_EPSILON_SECONDS = 0.25;
+const MIN_EDGE_SECTION_SECONDS = 8;
+const MIN_SINGLE_SECTION_REGION_SECONDS = 15;
 
 function normalizeSectionTimes(sectionTimes, trackDuration) {
   if (!Array.isArray(sectionTimes) || sectionTimes.length === 0) return [];
   const hasDuration = typeof trackDuration === 'number' && Number.isFinite(trackDuration) && trackDuration > 0;
-  const maxTime = hasDuration ? trackDuration - END_EPSILON_SECONDS : Infinity;
+  const minTime = hasDuration ? MIN_EDGE_SECTION_SECONDS : 0;
+  const maxTime = hasDuration ? Math.max(minTime, trackDuration - MIN_EDGE_SECTION_SECONDS) : Infinity;
   const sorted = sectionTimes
-    .filter((time) => typeof time === 'number' && Number.isFinite(time) && time > 0 && time < maxTime)
+    .filter((time) => typeof time === 'number' && Number.isFinite(time) && time > minTime && time <= maxTime)
     .sort((a, b) => a - b);
   const cleaned = [];
   for (const time of sorted) {
     const last = cleaned[cleaned.length - 1];
     if (last === undefined || time - last >= MIN_SECTION_GAP_SECONDS) cleaned.push(time);
+  }
+  if (hasDuration && cleaned.length === 1) {
+    const only = cleaned[0] ?? 0;
+    if (only < MIN_SINGLE_SECTION_REGION_SECONDS || trackDuration - only < MIN_SINGLE_SECTION_REGION_SECONDS) {
+      return [];
+    }
   }
   return cleaned;
 }
@@ -226,7 +235,7 @@ async function main() {
   const sourceAlbums = data.albums ?? [];
   console.log(`Source: ${data.total_albums ?? sourceAlbums.length} albums, ${data.total_tracks ?? '?'} tracks`);
 
-  const sectionStats = { tracksWithSections: 0, tracksCleaned: 0, boundariesDropped: 0, tracksEmptied: 0 };
+  const sectionStats = { tracksWithSections: 0, tracksCleaned: 0, boundariesDropped: 0, tracksEmptied: 0, detectedIgnored: 0 };
 
   const albums = sourceAlbums.map((a) => {
     const existingAlbum = existing?.albums?.find((album) => normalizeLookupKey(album.name) === normalizeLookupKey(a.name));
@@ -247,10 +256,11 @@ async function main() {
       assignIfDefined(track, 'notes', typeof t.notes === 'string' && t.notes.trim() ? t.notes.trim() : undefined);
       assignIfDefined(track, 'is_published', pick(t.is_published, t.isPublished));
 
-      // Sanitize detected/authored section boundaries once, at ingestion, so all
+      // Sanitize authored section boundaries once, at ingestion, so all
       // downstream consumers get sorted, in-bounds, de-jittered data.
       let sectionTimesSource = t.section_times_source ?? undefined;
-      if (Array.isArray(t.section_times) && t.section_times.length) {
+      const sectionTimesAreTrusted = sectionTimesSource === 'manual' || TRUST_DETECTED_SECTION_TIMES;
+      if (Array.isArray(t.section_times) && t.section_times.length && sectionTimesAreTrusted) {
         sectionStats.tracksWithSections += 1;
         const cleaned = normalizeSectionTimes(t.section_times, track.duration ?? undefined);
         const dropped = t.section_times.length - cleaned.length;
@@ -267,6 +277,9 @@ async function main() {
           sectionTimesSource = 'fallback';
           console.warn(`  ⚠ section_times "${track.title}": all ${t.section_times.length} boundaries invalid → synthesized arc`);
         }
+      } else if (Array.isArray(t.section_times) && t.section_times.length && sectionTimesSource === 'detected') {
+        sectionStats.detectedIgnored += 1;
+        sectionTimesSource = 'fallback';
       }
       assignIfDefined(track, 'section_times_source', sectionTimesSource);
       if (t.bpm !== undefined) {

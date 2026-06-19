@@ -38,7 +38,7 @@ Visuals that feel like terrain, horizons, valleys, ridgelines, or distance.
 - topographic drift
 - low landscape currents
 
-Current coverage: `cong-contour-lines` (section-revealed parallax terraces with sparse ridge glints), `cong-landscape-flow`, `cong-landscape-og-current`; `cong-horizon-field` is review-ready as a mirrored mist-horizon family.
+Current coverage: `cong-contour-lines` (section-revealed parallax terraces with sparse ridge glints), `cong-landscape-flow`; `cong-horizon-field` is review-ready as a mirrored mist-horizon family.
 
 ### Weather
 
@@ -50,7 +50,7 @@ Natural vertical or diagonal motion.
 - sidewind
 - distant storm shimmer
 
-Current coverage: `cong-rain-shower`, `cong-top-bottom-storm`, `native-sidewind-drift` (sparse motes on gusting lateral wind over a dim horizon band).
+Current coverage: `cong-rain-shower`, `cong-top-bottom-storm`.
 
 ### Water / Tide
 

@@ -56,15 +56,15 @@ Families mirror `VISUAL_REPERTOIRE.md`. Update counts/gaps as work lands. `+` = 
 | Family | State | Current coverage | Open gap |
 |---|---|---|---|
 | Atmosphere | + | `cong-cloud-orbit`, `cong-cloud-again-intro-generative`, `native-aurora-veil`, `three-volumetric-fog` | — |
-| Landscape | + | `cong-contour-lines` (merged ridge/glint ideas), `cong-landscape-flow`, `cong-landscape-og-current`, `cong-horizon-field` (review-ready) | — |
-| Weather | + | `cong-rain-shower`, `cong-top-bottom-storm`, `native-sidewind-drift` | — |
+| Landscape | + | `cong-contour-lines` (merged ridge/glint ideas), `cong-landscape-flow`, `cong-horizon-field` (review-ready) | `cong-landscape-og-current` retired after review |
+| Weather | + | `cong-rain-shower`, `cong-top-bottom-storm` | `native-sidewind-drift` retired after review |
 | Water / Tide | + | `cong-waterline-shimmer`, `three-caustics` | — |
 | Texture | + | native overlays/grain; `cong-artwork-datamosh-rain-evolution` (legacy restrained accent); `three-artwork-flux` (artwork feedback); `three-volumetric-fog` (partial); `three-flat-material` | continue tuning procedural surfaces against fog/artwork overlap |
 | Light | + | `three-light-rays` (god-rays + motes), `grid-rays`, `random-chords` overlays | — |
 | Linework | ~ | `cong-contour-lines` | non-cloud linework family still open |
 | Grid / Structure | ! | `grid-rays` overlay | **!** `cong-grid-pulse` (restrained tile/grid pulse) from `derkdisco` |
-| Orbit / Core | + | `cong-planet-core`, `native-gravity-current`, `three-fresnel-core` | — |
-| Sparse Minimal | + | `three-sparse-veil` (near-still volumetric mist), `three-fresnel-core` | — |
+| Orbit / Core | + | `cong-planet-core`, `native-gravity-current` | `three-fresnel-core` retired after review |
+| Sparse Minimal | + | `three-sparse-veil` (near-still volumetric mist) | `three-fresnel-core` retired after review |
 
 When a technique is confirmed/retired, also reflect it in `cong/ledger.ts` (`reviewState`, `archiveStatus`).
 
@@ -81,7 +81,7 @@ Rotate GPU techniques so the repertoire does not become only fullscreen fragment
 | Instanced field | + | `three-curl-flow` | Only add if the scene role differs clearly |
 | Ping-pong FBO feedback | + | `three-artwork-flux`, `three-reaction-diffusion` | Fluid advection still open if a second stateful material is needed |
 | Artwork texture sampling | + | `three-artwork-flux` | Keep accent-only; never opener |
-| Fresnel / SDF / core form | + | `three-fresnel-core` | — |
+| Fresnel / SDF / core form | - | — | `three-fresnel-core` retired after review |
 | Light-only GPU scene | + | `three-light-rays` | — |
 | Reaction-diffusion (Gray-Scott) | + | `three-reaction-diffusion` | Continue tuning against flat material/fog overlap |
 | GPU fluid advection | ! | — | **Highest-priority new technique** — velocity-field ping-pong; drives particle trails like smoke/ink; far more organic than noise-driven motion |
@@ -94,7 +94,7 @@ Rotate GPU techniques so the repertoire does not become only fullscreen fragment
 
 Seeded from `VISUAL_REPERTOIRE.md` declared gaps + "Next Batch". Prefer Three-first rendering structures over more particle presets.
 
-1. ~~**Fresnel bloom core**~~ — ✅ shipped as `three-fresnel-core` (2026-06-18)
+1. **Fresnel bloom core** — retired after review (2026-06-19); central orb form failed the world/ecosystem test.
 2. ~~**Flat material texture**~~ — ✅ shipped as `three-flat-material` (2026-06-19)
 3. ~~**Light-only recipe**~~ — ✅ shipped as `three-light-rays` (2026-06-19)
 4. ~~**Near-still volumetric tableau**~~ — ✅ shipped as `three-sparse-veil` (2026-06-19)
@@ -150,6 +150,7 @@ Look for additional candidates: sketches that read denser-than-deep, weak/absent
 
 Newest first. Format: `YYYY-MM-DD · new|improvement · <recipe/kernel> · <one-line outcome>`.
 
+- 2026-06-19 · retirement · `native-sidewind-drift`, `cong-landscape-og-current`, `three-fresnel-core` · removed from registry, recipes, rotation pools, and source after review.
 - 2026-06-19 · improvement · `smoke-planes` · Section arc / Colour & mood: per-phase hue offset (cool → warm at peak → cool exhale), dot-size growth toward peak, speed multiplier per section; all lerp smoothly over ~1.4 s.
 - 2026-06-19 · new · `cong-green-galaxy-orbit` · added recipe wiring the orphaned `cong-green-galaxy` kernel into rotation; fills Galaxy/Orbit via distinct orbital-particle implementation.
 - 2026-06-19 · foundation · visual system checks · added profile/storyboard reachability validation and browser smoke-test coverage for visual regressions.

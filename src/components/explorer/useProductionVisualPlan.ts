@@ -13,6 +13,7 @@ import {
 
 const FORCE_GENERATED_VISUALS_FOR_ALL_TRACKS = false;
 const EMPTY_SECTION_TIMES: number[] = [];
+const TRUST_DETECTED_SECTION_TIMES = false;
 const PARTICLE_EVOLUTION_KERNELS = new Set([
   'cong-generative-particles',
   'cong-cloud-orbit',
@@ -141,6 +142,8 @@ export interface ProductionVisualPlanInput {
   effectiveVisualTrackIndex: number;
   currentTime: number;
   trackProgress: number;
+  reviewTime?: number;
+  reviewSectionIndex?: number;
   visualSettings: ProductionsVisualSettings;
   automaticRecipeId: ExplorerRecipeId;
   showMoodLab: boolean;
@@ -155,6 +158,8 @@ export function useProductionVisualPlan({
   effectiveVisualTrackIndex,
   currentTime,
   trackProgress,
+  reviewTime,
+  reviewSectionIndex,
   visualSettings,
   automaticRecipeId,
   showMoodLab,
@@ -167,10 +172,9 @@ export function useProductionVisualPlan({
   const baseColor = visualAlbum?.base_color ?? null;
   const track = visualAlbum?.tracks[effectiveVisualTrackIndex] ?? visualAlbum?.tracks[0];
   const trackTitle = track?.title ?? '';
-  const rawSectionTimes = track?.section_times ?? EMPTY_SECTION_TIMES;
+  const sectionTimesAreTrusted = track?.section_times_source === 'manual' || (TRUST_DETECTED_SECTION_TIMES && track?.section_times_source === 'detected');
+  const rawSectionTimes = sectionTimesAreTrusted ? track?.section_times ?? EMPTY_SECTION_TIMES : EMPTY_SECTION_TIMES;
   const beatGrid = useMemo(() => resolveBeatGrid(track?.bpm, track?.beatStartAt), [track?.beatStartAt, track?.bpm]);
-  const visualCurrentTime = currentTime;
-  const visualTrackProgress = trackProgress;
   const baseVisualConfig = useMemo(
     () => stripAuthoredVisualConfig(mergeTrackVisualConfigs(visualAlbum?.visualConfig, track?.visualConfig)),
     [visualAlbum?.visualConfig, track?.visualConfig],
@@ -196,16 +200,34 @@ export function useProductionVisualPlan({
   const visualAssignmentMode: 'authored' | 'fallback' = hasAuthoredVisualConfig(baseVisualConfig)
     ? 'authored'
     : 'fallback';
-  const sectionTimes = useMemo(() => {
+  const songSectionTimes = useMemo(() => {
     // Normalize in BOTH modes so getSectionIndex/cues always get sorted,
     // in-bounds, de-jittered boundaries — authored data is not pre-cleaned.
-    const cleaned = normalizeSectionTimes(rawSectionTimes, track?.duration ?? undefined);
-    return visualAssignmentMode === 'authored'
-      ? cleaned
-      : padSectionTimes(cleaned, track?.duration ?? undefined, Math.max(6, cleaned.length + 1));
-  }, [rawSectionTimes, track?.duration, visualAssignmentMode]);
+    return normalizeSectionTimes(rawSectionTimes, track?.duration ?? undefined);
+  }, [rawSectionTimes, track?.duration]);
+  const sectionTimes = useMemo(() => (
+    visualAssignmentMode === 'authored'
+      ? songSectionTimes
+      : padSectionTimes(songSectionTimes, track?.duration ?? undefined, Math.max(6, songSectionTimes.length + 1))
+  ), [songSectionTimes, track?.duration, visualAssignmentMode]);
+  const visualCurrentTime = useMemo(() => {
+    if (reviewTime !== undefined && Number.isFinite(reviewTime)) {
+      return Math.max(0, reviewTime);
+    }
+    if (reviewSectionIndex !== undefined && Number.isFinite(reviewSectionIndex)) {
+      const sectionIndex = Math.max(0, Math.round(reviewSectionIndex));
+      const start = sectionIndex <= 0 ? 0 : sectionTimes[Math.min(sectionIndex - 1, Math.max(sectionTimes.length - 1, 0))] ?? 0;
+      const end = sectionTimes[sectionIndex] ?? track?.duration ?? start + 18;
+      const span = Math.max(6, end - start);
+      return start + Math.min(Math.max(4, span * 0.36), 14);
+    }
+    return currentTime;
+  }, [currentTime, reviewSectionIndex, reviewTime, sectionTimes, track?.duration]);
+  const visualTrackProgress = track?.duration
+    ? Math.max(0, Math.min(1, visualCurrentTime / track.duration))
+    : trackProgress;
   const visualConfig = useMemo<TrackVisualConfig | undefined>(() => {
-    const fallbackRecipeId = 'cong-artwork-datamosh-rain-evolution';
+    const fallbackRecipeId = 'three-artwork-flux';
     if (hasAuthoredVisualConfig(baseVisualConfig)) {
       return baseVisualConfig ? replaceGloballyDisabledRecipes(baseVisualConfig, fallbackRecipeId) : baseVisualConfig;
     }
@@ -278,7 +300,7 @@ export function useProductionVisualPlan({
       : 'Production';
   const productionArcName = useMemo(() => getProductionMoshArcName(albumName, trackTitle), [albumName, trackTitle]);
   const productionChipDetail = visualAssignmentMode === 'fallback' && !reviewRecipeId
-    ? currentRecipe.id === 'cong-artwork-datamosh-rain-evolution'
+    ? currentRecipe.id === 'three-artwork-flux'
       ? ` · arc ${productionArcName}`
       : ` · generated`
     : '';
@@ -289,6 +311,7 @@ export function useProductionVisualPlan({
     baseColor,
     track,
     trackTitle,
+    songSectionTimes,
     sectionTimes,
     beatGrid,
     visualCurrentTime,

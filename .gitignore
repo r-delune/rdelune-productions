@@ -2,5 +2,6 @@ node_modules
 .next/
 .next-*/
 out/
+artifacts/
 .env*
 .DS_Store

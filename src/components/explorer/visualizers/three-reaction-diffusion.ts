@@ -33,7 +33,7 @@ import { threeHost } from './three-host';
 import { createThreeVisualizer, type ThreeScene, type ThreeSceneBuildArgs } from './three-visualizer';
 
 // Simulation runs at reduced resolution for performance.
-const SIM_SCALE = 0.35;
+const SIM_SCALE = 0.55;
 
 // Gray-Scott section presets [feed, kill].
 // Each entry is the target at section progress 0, 0.25, 0.5, 0.75, 1.0.
@@ -207,6 +207,11 @@ function makeReactionDiffusionScene(): ThreeScene {
       simSize(args.w, args.h);
 
       statePP = createFloatPingPong(three, simW, simH);
+      // Linear filter for display upsampling — sim update uses explicit offsets so filter doesn't affect dynamics
+      statePP.read.texture.minFilter = three.LinearFilter;
+      statePP.read.texture.magFilter = three.LinearFilter;
+      statePP.write.texture.minFilter = three.LinearFilter;
+      statePP.write.texture.magFilter = three.LinearFilter;
 
       // Seed scene (runs once to initialise state)
       seedUniforms = { uSeed: { value: 0 } };

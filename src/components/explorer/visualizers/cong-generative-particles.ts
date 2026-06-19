@@ -610,7 +610,7 @@ export function createCongGenerativeParticles(): Visualizer {
 
   function particleReleaseAlpha(particle: EngineParticle): number {
     if (!tuning.releaseOnCue) return 1;
-    const initialAlpha = clamp01(tuning.initialParticleAlpha ?? 0);
+    const initialAlpha = clamp01(tuning.initialParticleAlpha ?? 0.3);
     if (releaseMode === 'all-at-once') {
       return initialAlpha + (1 - initialAlpha) * smoothstep(particleRelease);
     }

@@ -145,13 +145,13 @@ function getCloudAgainRoleCandidates(role: ExplorerStoryboardSectionRole, storyb
   if (storyboard?.template !== 'cloud-again') return [];
 
   const semanticIds: Readonly<Record<ExplorerStoryboardSectionRole, readonly ExplorerRecipeId[]>> = {
-    intro: ['cong-cloud-again-intro-generative', 'cong-cloud-again-generative'],
-    establish: ['cong-cloud-again-intro-generative', 'cong-cloud-again-generative'],
-    drift: ['cong-cloud-again-generative', 'cong-landscape-og-current'],
-    build: ['cong-green-galaxy', 'cong-landscape-og-current'],
+    intro: ['cong-cloud-again-intro-generative', 'cong-cloud-orbit'],
+    establish: ['cong-cloud-again-intro-generative', 'cong-cloud-orbit'],
+    drift: ['cong-cloud-orbit', 'cong-landscape-flow'],
+    build: ['cong-green-galaxy', 'cong-landscape-flow'],
     lift: ['cong-rain-shower', 'cong-green-galaxy'],
-    peak: ['cong-green-galaxy', 'cong-rain-shower', 'cong-landscape-og-current', 'cong-artwork-datamosh-rain-evolution'],
-    release: ['cong-cloud-again-generative', 'cong-waterline-shimmer'],
+    peak: ['cong-green-galaxy', 'cong-rain-shower', 'cong-waterline-shimmer', 'three-artwork-flux'],
+    release: ['cong-cloud-orbit', 'cong-waterline-shimmer'],
     afterglow: ['cong-cloud-again-intro-generative', 'native-smoke-planes'],
   };
 
@@ -166,10 +166,10 @@ const MOSH_ROLE_POOLS: Readonly<Record<ExplorerStoryboardSectionRole, readonly E
   intro:     ['cong-artwork-mosh-veil-drift', 'cong-artwork-mosh-minimal-ghost', 'cong-artwork-mosh-soft-scan'],
   establish: ['cong-artwork-mosh-left-flow', 'cong-artwork-mosh-soft-scan', 'cong-artwork-mosh-slit-scan'],
   drift:     ['cong-artwork-mosh-minimal-ghost', 'cong-artwork-mosh-veil-drift', 'cong-artwork-mosh-soft-scan'],
-  build:     ['cong-artwork-datamosh-rain-evolution', 'cong-artwork-mosh-pixel-sort', 'cong-artwork-mosh-left-flow', 'cong-artwork-mosh-storm-open'],
-  lift:      ['cong-artwork-mosh-slit-scan', 'cong-artwork-mosh-storm-open', 'cong-artwork-datamosh-rain-evolution', 'cong-artwork-mosh-pixel-sort'],
-  peak:      ['cong-artwork-mosh-fracture', 'cong-artwork-mosh-pixel-sort', 'cong-artwork-mosh-storm-open', 'cong-artwork-datamosh-rain-evolution'],
-  release:   ['cong-artwork-mosh-slit-scan', 'cong-artwork-datamosh-rain-evolution', 'cong-artwork-mosh-pixel-islands', 'cong-artwork-mosh-left-flow'],
+  build:     ['three-artwork-flux', 'cong-artwork-mosh-pixel-sort', 'cong-artwork-mosh-left-flow', 'cong-artwork-mosh-storm-open'],
+  lift:      ['cong-artwork-mosh-slit-scan', 'cong-artwork-mosh-storm-open', 'three-artwork-flux', 'cong-artwork-mosh-pixel-sort'],
+  peak:      ['cong-artwork-mosh-fracture', 'cong-artwork-mosh-pixel-sort', 'cong-artwork-mosh-storm-open', 'three-artwork-flux'],
+  release:   ['cong-artwork-mosh-slit-scan', 'three-artwork-flux', 'cong-artwork-mosh-pixel-islands', 'cong-artwork-mosh-left-flow'],
   afterglow: ['cong-artwork-mosh-soft-scan', 'cong-artwork-mosh-veil-drift', 'cong-artwork-mosh-minimal-ghost'],
 };
 

@@ -30,6 +30,8 @@ const PROFILE_COLORS: Record<string, string> = {
 interface CurationHUDProps {
   visualPlan: TrackVisualPlan;
   sectionTimes: number[];
+  songSectionTimes: number[];
+  sectionTimesSource?: string | null;
   beatGrid: BeatGrid;
   currentTime: number;
   sectionIndex: number;
@@ -64,6 +66,8 @@ function estimateTotalDuration(sectionTimes: number[], trackDuration: number | u
 export default function CurationHUD({
   visualPlan,
   sectionTimes,
+  songSectionTimes,
+  sectionTimesSource,
   beatGrid,
   currentTime,
   sectionIndex,
@@ -112,6 +116,7 @@ export default function CurationHUD({
 
   const totalDuration = estimateTotalDuration(sectionTimes, trackDuration);
   const currentRecipe = getSectionRecipe(visualPlan, sectionIndex);
+  const songSectionCount = songSectionTimes.length + 1;
 
   // Recent non-bar-cue events (last 2s)
   const recentEvents = visualPlan.events.filter(
@@ -202,6 +207,14 @@ export default function CurationHUD({
           <div style={{ marginBottom: 6 }}>
             <span className="chud-label">Recipe</span>
             <span className="chud-value">{currentRecipe.name}</span>
+          </div>
+
+          <div style={{ marginBottom: 6 }}>
+            <span className="chud-label">Song Sections</span>
+            <span className="chud-value">
+              {sectionTimesSource === 'fallback' ? 'fallback' : `${songSectionCount} ${sectionTimesSource ?? 'unknown'}`}
+            </span>
+            <span className="chud-muted"> · visual steps {visualPlan.steps.length}</span>
           </div>
 
           <hr className="chud-divider" />

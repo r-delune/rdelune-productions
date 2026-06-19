@@ -154,6 +154,38 @@ This server has **no display, no GUI, and no browser**. Do NOT attempt to:
 
 Visual verification is done by the owner locally. Your job is `npm run verify` + TypeScript review of the code.
 
+## External Visual Review Worker
+
+Browser review is intentionally external to Hermes. A local machine, desktop Codex session, or CI worker with Chrome can visit a deployed or Cloudflare preview URL and produce review artifacts:
+
+```bash
+VISUAL_REVIEW_URL=https://<preview-or-production-url> npm run review:visual
+```
+
+The app exposes a deterministic review surface for that worker:
+
+```text
+/?visualReview=1&recipe=<recipeId>&reviewSection=<sectionIndex>
+```
+
+`visualReview=1` enables recipe and section selection in production without showing the mood lab UI. The review script writes PNG captures, JSON sidecars, and an `index.html` contact sheet under `artifacts/visual-review/<timestamp>/`. Hermes may read those artifacts after they are uploaded or handed back by the external worker, but Hermes must not try to generate them on the no-browser server.
+
+This is deliberately a query-param mode on the existing app origin, not a new host or proxy. CORS is therefore unchanged: the origin remains `productions.rdelune.dev`, and query params do not affect CORS. The player disables audio in `visualReview=1`, so review captures do not depend on audio playback, media preload, or audio CDN access. Artwork/data loading stays on the same paths the normal app already uses.
+
+For full music-reactive review, opt into the existing player/audio path instead of inventing a second path:
+
+```bash
+VISUAL_REVIEW_AUDIO=1 VISUAL_REVIEW_URL=https://<preview-or-production-url> npm run review:visual
+```
+
+That adds `reviewAudio=1`, leaves the player audio enabled, clicks the normal Play control in headless Chrome, and captures the same deterministic recipe/section views while audio analysis is live. Use this after the silent structural review when judging beat/energy feel. If the audio CDN CORS or media path breaks, it should surface as normal console/runtime errors in the review artifact rather than being hidden by a proxy.
+
+Preferred review flow for visual changes:
+
+1. Hermes runs `npm run verify` and deploys a Cloudflare preview or production build as usual.
+2. External worker runs `VISUAL_REVIEW_URL=<deployed-url> npm run review:visual`.
+3. Human or image-capable reviewer inspects `artifacts/visual-review/<timestamp>/index.html` and the JSON telemetry before accepting the visual cycle.
+
 ## Branch And Deploy Policy
 
 Hermes commits directly to `main` and deploys after every verified cycle. No PRs, no branches, no human merge step. The verification gates below are the review.

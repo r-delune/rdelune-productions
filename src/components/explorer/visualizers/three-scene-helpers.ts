@@ -317,21 +317,11 @@ export const STD_UNIFORM_GLSL = /* glsl */ `
     return uBeatPhase >= 0.0 ? (1.0 + 0.18 * pow(1.0 - uBeatPhase, 3.0)) : 1.0;
   }
 
-  // Softly mute under the player panel, fading across the safety pad. Older
-  // Three sketches treated the padded area as a binary rectangle, which made
-  // the bottom-right player mask visible as a hard block.
+  // Keep shader output continuous behind the player. The player panel already
+  // has its own dark surface; even gentle shader-side dimming can read as a
+  // rectangular artifact on dense or textural sketches.
   float exclusionMask(){
-    if (uExclusionActive < 0.5) return 1.0;
-    vec2 px = vec2(vUv.x * uResolution.x, (1.0 - vUv.y) * uResolution.y);
-    float pad = 80.0;
-    vec2 closest = clamp(px, uExclusion.xz, uExclusion.yw);
-    vec2 outside = px - closest;
-    float outsideDist = length(outside);
-    float inside = step(uExclusion.x, px.x) * step(px.x, uExclusion.y)
-                 * step(uExclusion.z, px.y) * step(px.y, uExclusion.w);
-    float outsideFalloff = 1.0 - smoothstep(0.0, pad, outsideDist);
-    float strength = max(inside * 0.68, outsideFalloff * 0.34);
-    return mix(1.0, 0.52, strength);
+    return 1.0;
   }
 `;
 

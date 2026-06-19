@@ -1250,48 +1250,6 @@ function drawManagedStageImage(
   ctx.drawImage(image, 0, 0, width, height);
   ctx.filter = 'none';
 
-  const residualColor = Math.max(0, reveal - 0.18) * 0.18;
-  if (residualColor > 0.001) {
-    ctx.globalAlpha = alpha * residualColor;
-    ctx.globalCompositeOperation = 'screen';
-    ctx.drawImage(image, 0, 0, width, height);
-    ctx.globalCompositeOperation = 'source-over';
-  }
-
-  const columns = 18;
-  const rows = 5;
-  const bandWidth = width / columns;
-  const bandHeight = height / rows;
-  const wave = time * 0.08 + seed * 0.37;
-  ctx.globalCompositeOperation = compositeOperation;
-
-  for (let row = 0; row < rows; row += 1) {
-    for (let column = 0; column < columns; column += 1) {
-      const stagger = (
-        column / Math.max(columns - 1, 1) * 0.58
-        + row / Math.max(rows - 1, 1) * 0.24
-        + (Math.sin(column * 1.73 + row * 2.31 + seed) * 0.5 + 0.5) * 0.18
-      ) % 1;
-      const local = smoothstep01((reveal - stagger * 0.72) / 0.28);
-      if (local <= 0.002) continue;
-
-      const breath = 0.84 + Math.sin(wave + column * 0.41 + row * 0.87) * 0.16;
-      const x = Math.max(0, column * bandWidth - bandWidth * 0.08);
-      const y = Math.max(0, row * bandHeight - bandHeight * 0.12);
-      const w = Math.min(width - x, bandWidth * (1.12 + local * 0.18));
-      const h = Math.min(height - y, bandHeight * (1.18 + local * 0.24));
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(x, y, w, h);
-      ctx.clip();
-      ctx.globalAlpha = alpha * Math.min(1, local * breath);
-      ctx.globalCompositeOperation = compositeOperation;
-      ctx.drawImage(image, 0, 0, width, height);
-      ctx.restore();
-    }
-  }
-
   ctx.restore();
 }
 
@@ -1405,6 +1363,7 @@ interface Props {
   baseColor: string | null;
   artworkUrl?: string;
   sectionTimes: number[];
+  songSectionTimes?: number[];
   sectionTimesSource?: string | null;
   beatGrid: BeatGrid;
   trackDuration?: number;
@@ -1416,6 +1375,7 @@ interface Props {
   reviewMotion?: boolean;
   showSketchLabel?: boolean;
   colorOnlyWhilePlaying?: boolean;
+  hasPlaybackStarted?: boolean;
   rotationSeed?: string;
 }
 
@@ -1427,6 +1387,7 @@ export default function ExplorerCanvas({
   baseColor,
   artworkUrl,
   sectionTimes,
+  songSectionTimes,
   sectionTimesSource,
   beatGrid,
   trackDuration,
@@ -1438,6 +1399,7 @@ export default function ExplorerCanvas({
   reviewMotion = false,
   showSketchLabel = false,
   colorOnlyWhilePlaying = false,
+  hasPlaybackStarted = false,
   rotationSeed,
 }: Props) {
   const playbackMode = getProductionPlaybackMode();
@@ -1446,6 +1408,8 @@ export default function ExplorerCanvas({
   const mobileCanvasRef = useRef<HTMLCanvasElement>(null);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [visualRuntimeReady, setVisualRuntimeReady] = useState(false);
+  const [startupOverlayVisible, setStartupOverlayVisible] = useState(true);
+  const [startupOverlayMounted, setStartupOverlayMounted] = useState(true);
   const staticPalette = clonePalette(generatePalette(baseColor));
 
   const albumNameRef = useRef(albumName);
@@ -1461,6 +1425,7 @@ export default function ExplorerCanvas({
   const panelCollapsedRef = useRef(panelCollapsed);
   const visualConfigRef = useRef(visualConfig);
   const colorOnlyWhilePlayingRef = useRef(colorOnlyWhilePlaying);
+  const hasPlaybackStartedRef = useRef(hasPlaybackStarted);
   const rotationSeedRef = useRef(rotationSeed);
 
   useEffect(() => { albumNameRef.current = albumName; }, [albumName]);
@@ -1477,6 +1442,7 @@ export default function ExplorerCanvas({
   useEffect(() => { panelCollapsedRef.current = panelCollapsed; }, [panelCollapsed]);
   useEffect(() => { visualConfigRef.current = visualConfig; }, [visualConfig]);
   useEffect(() => { colorOnlyWhilePlayingRef.current = colorOnlyWhilePlaying; }, [colorOnlyWhilePlaying]);
+  useEffect(() => { hasPlaybackStartedRef.current = hasPlaybackStarted; }, [hasPlaybackStarted]);
   useEffect(() => { rotationSeedRef.current = rotationSeed; }, [rotationSeed]);
 
   useEffect(() => {
@@ -1531,6 +1497,13 @@ export default function ExplorerCanvas({
       if (timeoutId != null) clearTimeout(timeoutId);
     };
   }, [shouldPrepareRuntime]);
+
+  useEffect(() => {
+    if (!q5Ready) return;
+    const raf = requestAnimationFrame(() => setStartupOverlayVisible(false));
+    const unmount = setTimeout(() => setStartupOverlayMounted(false), 3000);
+    return () => { cancelAnimationFrame(raf); clearTimeout(unmount); };
+  }, [q5Ready]);
 
   useEffect(() => {
     if (supportsRichVisualRuntime) return;
@@ -1680,7 +1653,7 @@ export default function ExplorerCanvas({
       const [accentR, accentG, accentB] = palette.accentGlow;
       const [warmR, warmG, warmB] = palette.accentWarm;
       const [bottomR, bottomG, bottomB] = getThemeBottomColor();
-      const colorPresence = colorOnlyWhilePlayingRef.current ? (playingRef.current ? 1 : 0) : 1;
+      const colorPresence = colorOnlyWhilePlayingRef.current && hasPlaybackStartedRef.current ? (playingRef.current ? 1 : 0) : 1;
 
       ctx.globalCompositeOperation = 'source-over';
       const background = ctx.createLinearGradient(0, 0, 0, height);
@@ -1834,7 +1807,7 @@ export default function ExplorerCanvas({
     let lastCueCount = 0;
     let prevSectionTimes: number[] = [];
     let playEnergy = 0;
-    let colorPresence = colorOnlyWhilePlayingRef.current && !playingRef.current ? 0 : 1;
+    let colorPresence = colorOnlyWhilePlayingRef.current && hasPlaybackStartedRef.current && !playingRef.current ? 0 : 1;
     let lastEventTime = 0;
     let prevBeatPhase = 0;
     let beatPulseValue = 0;
@@ -2335,10 +2308,10 @@ export default function ExplorerCanvas({
         lastEventTime = currentTimeValue;
       }
 
-      const playTarget = playingRef.current ? 1 : reviewMotion ? 0.58 : 0.22;
+      const playTarget = playingRef.current ? 1 : reviewMotion ? 0.58 : 0.42;
       const playBlend = 1 - Math.exp(-frameDt / (playingRef.current ? 1.15 : 2.8));
       playEnergy += (playTarget - playEnergy) * playBlend;
-      const colorTarget = colorOnlyWhilePlayingRef.current ? (playingRef.current ? 1 : 0) : 1;
+      const colorTarget = colorOnlyWhilePlayingRef.current && hasPlaybackStartedRef.current ? (playingRef.current ? 1 : 0) : 1;
       const colorBlend = 1 - Math.exp(-frameDt / (playingRef.current ? 2.8 : 3.8));
       colorPresence += (colorTarget - colorPresence) * colorBlend;
 
@@ -2684,7 +2657,7 @@ export default function ExplorerCanvas({
   const [accentR, accentG, accentB] = staticPalette.accentGlow;
   const [warmR, warmG, warmB] = staticPalette.accentWarm;
   const [bottomR, bottomG, bottomB] = getThemeBottomColor();
-  const visualColorFilter = colorOnlyWhilePlaying && !isPlaying ? 'grayscale(1) saturate(0)' : 'none';
+  const visualColorFilter = colorOnlyWhilePlaying && hasPlaybackStarted && !isPlaying ? 'grayscale(1) saturate(0)' : 'none';
   const mobileDebugPlan = !supportsRichVisualRuntime && showSketchLabel
     ? buildTrackVisualPlan(albumName, trackTitle, sectionTimes, visualConfig, baseColor, rotationSeed, trackDuration, beatGrid, artworkUrl)
     : null;
@@ -2699,14 +2672,27 @@ export default function ExplorerCanvas({
   const timelineRecipe = timelinePlan ? getSectionRecipe(timelinePlan, timelineSectionIndex) : null;
   const barCueEvents = timelinePlan?.events.filter((event) => event.type === 'bar-cue') ?? [];
   const timelineBeatPosition = getBeatGridPosition(beatGrid, currentTime);
-  const lastSectionTime = sectionTimes[sectionTimes.length - 1] ?? 0;
+  const displaySectionTimes = songSectionTimes ?? sectionTimes;
+  const displaySectionIndex = showSectionTimeline ? getSectionIndex(displaySectionTimes, currentTime) : 0;
+  const lastSectionTime = Math.max(sectionTimes[sectionTimes.length - 1] ?? 0, displaySectionTimes[displaySectionTimes.length - 1] ?? 0);
   const lastBarTime = barCueEvents[barCueEvents.length - 1]?.t ?? 0;
   const timelineEnd = Math.max(trackDuration ?? 0, lastSectionTime * 1.25, lastBarTime, 60);
-  const regionStart = timelineSectionIndex > 0 ? sectionTimes[timelineSectionIndex - 1] ?? 0 : 0;
-  const regionEnd = sectionTimes[timelineSectionIndex] ?? timelineEnd;
+  const regionStart = displaySectionIndex > 0 ? displaySectionTimes[displaySectionIndex - 1] ?? 0 : 0;
+  const regionEnd = displaySectionTimes[displaySectionIndex] ?? timelineEnd;
+  const timelineSections = timelinePlan
+    ? (() => {
+      const plan = timelinePlan;
+      return Array.from({ length: Math.max(1, displaySectionTimes.length + 1) }, (_, index) => {
+        const start = index > 0 ? displaySectionTimes[index - 1] ?? 0 : 0;
+        const end = displaySectionTimes[index] ?? timelineEnd;
+        const recipe = getSectionRecipe(plan, index);
+        return { index, start, end, recipe };
+      });
+    })()
+    : [];
   const sectionTimelineOverlay = showSectionTimeline ? (
     <div
-      className={`absolute bottom-0 left-0 right-0 z-10 h-9 overflow-hidden border-t text-[9px] backdrop-blur-sm ${sectionTimesSource === 'fallback' ? 'border-amber-500/40 bg-amber-900/70 text-amber-200' : 'border-white/10 bg-black/55 text-white/70'}`}
+      className={`absolute bottom-0 left-0 right-0 z-10 h-12 overflow-hidden border-t text-[9px] backdrop-blur-sm ${sectionTimesSource === 'fallback' ? 'border-amber-500/40 bg-amber-900/70 text-amber-200' : 'border-white/10 bg-black/55 text-white/70'}`}
       style={{ fontVariantNumeric: 'tabular-nums' }}
     >
       <div
@@ -2717,7 +2703,26 @@ export default function ExplorerCanvas({
         }}
       />
       <div className="absolute left-2 top-1 z-10 uppercase tracking-[0.12em]">
-        section {timelineSectionIndex} / {timelineRecipe?.id ?? 'unassigned'} / {beatGrid.bpm} bpm {beatGrid.bpmSource} / bar {timelineBeatPosition.barNumber}{sectionTimesSource === 'fallback' ? ' / ⚠ FALLBACK' : sectionTimesSource === 'detected' ? ' / detected' : sectionTimesSource === 'manual' ? ' / manual' : ''}
+        song section {displaySectionIndex + 1}/{displaySectionTimes.length + 1} / visual {timelineSectionIndex + 1}/{timelinePlan?.steps.length ?? 0} / {timelineRecipe?.id ?? 'unassigned'} / {beatGrid.bpm} bpm {beatGrid.bpmSource} / bar {timelineBeatPosition.barNumber}{sectionTimesSource === 'fallback' ? ' / ⚠ FALLBACK' : sectionTimesSource === 'detected' ? ' / detected' : sectionTimesSource === 'manual' ? ' / manual' : ''}
+      </div>
+      <div className="absolute inset-x-0 bottom-0 top-4">
+        {timelineSections.map(({ index, start, end, recipe }) => {
+          const left = clamp01(start / timelineEnd) * 100;
+          const width = Math.max(0.8, clamp01((end - start) / timelineEnd) * 100);
+          const active = index === displaySectionIndex;
+          const label = `S${index + 1}: ${formatTimelineTime(start)}-${formatTimelineTime(end)}`;
+          return (
+            <div
+              key={`${recipe.id}-${index}-${start}`}
+              className={`absolute bottom-1 top-0 overflow-hidden border-l px-1.5 ${active ? 'border-white/70 bg-white/18 text-white' : 'border-white/18 bg-black/10 text-white/58'}`}
+              style={{ left: `${left}%`, width: `${width}%` }}
+              title={`song section ${index + 1} · ${formatTimelineTime(start)}-${formatTimelineTime(end)} · visual ${recipe.id} · ${recipe.sceneProfile}`}
+            >
+              <div className="truncate leading-3">{label}</div>
+              <div className="truncate text-[8px] uppercase leading-3 opacity-70">{recipe.id}</div>
+            </div>
+          );
+        })}
       </div>
       {barCueEvents.map((event) => (
         <div
@@ -2726,7 +2731,7 @@ export default function ExplorerCanvas({
           style={{ left: `${clamp01(event.t / timelineEnd) * 100}%` }}
         />
       ))}
-      {sectionTimes.map((time, index) => (
+      {displaySectionTimes.map((time, index) => (
         <div
           key={`${time}-${index}`}
           className="absolute inset-y-0 border-l border-white/30"
@@ -2776,6 +2781,12 @@ export default function ExplorerCanvas({
             {` · ${beatGrid.bpm} BPM ${beatGrid.bpmSource} · bar ${mobileBeatPosition.barNumber}`}
           </div>
         ) : null}
+        {startupOverlayMounted && (
+          <div
+            className="absolute inset-0 pointer-events-none z-10"
+            style={{ background: '#050810', opacity: startupOverlayVisible ? 1 : 0, transition: 'opacity 2000ms ease' }}
+          />
+        )}
       </div>
     );
   }
@@ -2800,6 +2811,12 @@ export default function ExplorerCanvas({
       }}
     >
       {sectionTimelineOverlay}
+      {startupOverlayMounted && (
+        <div
+          className="absolute inset-0 pointer-events-none z-10"
+          style={{ background: '#050810', opacity: startupOverlayVisible ? 1 : 0, transition: 'opacity 2000ms ease' }}
+        />
+      )}
     </div>
   );
 }

@@ -124,7 +124,7 @@ export function createCongContourLines(): Visualizer {
       const [wr, wg, wb] = palette.accentWarm;
       const [dr, dg, db] = palette.dotColor;
       const sectionArc = Math.min(1, sectionCueCount / 5 + densityLift * 0.16 + ridgeGlow * 0.12);
-      const revealDepth = 0.46 + sectionArc * 0.62 + curParams.density * 0.08;
+      const revealDepth = 0.68 + sectionArc * 0.40 + curParams.density * 0.08;
       const ampScale = 0.54 + curParams.turbulence * 1.35 + curAudio.bass * 0.52 + ampLift * 0.92 + sectionArc * 0.42;
       const horizonY = h * (0.28 - sectionArc * 0.045 + Math.sin(time * 0.11) * 0.015);
       const wash = ctx.createLinearGradient(0, horizonY - h * 0.12, 0, h);

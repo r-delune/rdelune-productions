@@ -46,7 +46,7 @@ Particles and scene elements must *arrive*, not just *exist*. The canonical arc:
 - **Section 4 (peak):** maximum presence and motion; the scene feels fully inhabited.
 - **Section 5 (outro/resolve):** dispersal, stillness, or residue — particles leave, slow, or thin out.
 
-A visual running at the same density from frame 0 to the end fails this. The viewer must *feel* the world growing. Uniform-density kernels (`three-curl-flow` at 100k points from frame 0, `three-fresnel-core` at full radius from frame 0) are flagged for this fix in the Improvement Candidates.
+A visual running at the same density from frame 0 to the end fails this. The viewer must *feel* the world growing. Uniform-density kernels such as `three-curl-flow` at 100k points from frame 0 are flagged for this fix in the Improvement Candidates.
 
 ---
 

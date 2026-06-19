@@ -14,6 +14,7 @@
     "lint": "eslint src/ functions/",
     "check-rotation": "tsx scripts/check-rotation.mts",
     "verify:visual": "node scripts/verify-visual.mjs",
+    "review:visual": "node scripts/verify-visual.mjs --review",
     "verify": "npm run lint && npm run check-rotation && npm run build",
     "apply-productions-settings": "node scripts/apply-productions-settings.mjs"
   },

@@ -35,7 +35,6 @@ export const PRODUCTIONS_SETTINGS_BUNDLE_VERSION = 7;
 export const LEGACY_HIDDEN_REVIEW_SKETCHES_STORAGE_KEY = 'productions-hidden-review-sketches-v1';
 
 const LEGACY_STARTUP_SKETCH_DECK: readonly ExplorerRecipeId[] = [
-  'cong-landscape-og-current',
   'cong-rain-shower',
   'cong-green-galaxy',
   'cong-waterline-shimmer',

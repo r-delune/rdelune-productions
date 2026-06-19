@@ -116,19 +116,9 @@ const VERTEX_SHADER = /* glsl */ `
                  * (1.0 + uDensitySurge * 0.5);
     gl_PointSize = clamp(size, 0.5, 12.0);
 
-    // Player-panel exclusion: shrink/dim points whose screen position falls
-    // inside the (padded) UI rect so the panel stays readable.
+    // Do not draw a shader-side player mask. The player panel already has its
+    // own surface; dimming the visual here reads as a hard black rectangle.
     float exMask = 1.0;
-    if (uExclusionActive > 0.5) {
-      vec2 ndc = gl_Position.xy / gl_Position.w;
-      vec2 screen = vec2((ndc.x * 0.5 + 0.5) * uResolution.x,
-                         (1.0 - (ndc.y * 0.5 + 0.5)) * uResolution.y);
-      float pad = 90.0;
-      float inside = step(uExclusion.x - pad, screen.x) * step(screen.x, uExclusion.y + pad)
-                   * step(uExclusion.z - pad, screen.y) * step(screen.y, uExclusion.w + pad);
-      exMask = mix(1.0, 0.12, inside);
-      gl_PointSize *= mix(1.0, 0.4, inside);
-    }
 
     // Near particles brighter; far particles cooler for depth/parallax feel
     float warmth = clamp(aRand * 0.5 + uSectionProgress * 0.3 + aDepth * 0.3, 0.0, 1.0);

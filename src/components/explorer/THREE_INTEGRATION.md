@@ -131,7 +131,7 @@ Patterns that get the most out of the GPU within this architecture:
 | Raymarched volumetric fog | `three-volumetric-fog` | Atmosphere "fog sheets" + Texture "non-particle material" | ✅ shipped |
 | Shader water caustics | `three-caustics` | Water/Tide caustic | ✅ shipped |
 | Artwork texture feedback | `three-artwork-flux` | Texture/image-mangling accent | ✅ shipped |
-| Fresnel + bloom core form | `three-fresnel-core` | Orbit/Core "quieter core forms" + Light "soft bloom" | ✅ shipped |
+| Fresnel + bloom core form | retired | Orbit/Core "quieter core forms" + Light "soft bloom" | Removed after review; central orb form failed the world/ecosystem test |
 | Procedural material surface | `three-flat-material` | Texture grain/erosion/cellular surface | ✅ shipped |
 | Light-only GPU scene | `three-light-rays` | Glints/rays/bloom without dense particles | ✅ shipped |
 | Near-still volumetric tableau | `three-sparse-veil` | Sparse Minimal outro/low-energy tableau | ✅ shipped |

@@ -71,7 +71,7 @@ const FRAGMENT_SHADER = /* glsl */ `
 
     // Coverage grows with the slow level envelope and section progress (the
     // fog deepens over the song) — no raw band signal.
-    float coverage = uDensityScale * (0.55 + uLevel * 0.5 + uDensity * 0.6 + uSectionProgress * 0.5 + uSurge * 0.5);
+    float coverage = uDensityScale * (0.72 + uLevel * 0.5 + uDensity * 0.6 + uSectionProgress * 0.35 + uSurge * 0.5);
     float ns = uNoiseScale;
 
     float marchDist = 5.0;

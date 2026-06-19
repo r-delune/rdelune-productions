@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { rm } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { inflateSync } from 'node:zlib';
 
 const DEFAULT_URL = 'http://127.0.0.1:8084';
-const BASE_URL = process.env.VISUAL_SMOKE_URL || DEFAULT_URL;
+const REVIEW_MODE = process.argv.includes('--review');
+const REVIEW_URL = process.env.VISUAL_REVIEW_URL;
+const REVIEW_AUDIO = process.env.VISUAL_REVIEW_AUDIO === '1';
+const BASE_URL = REVIEW_URL || process.env.VISUAL_SMOKE_URL || DEFAULT_URL;
 const RECIPE_FIXTURES = [
   { id: 'three-caustics', kind: 'three-fullscreen' },
   { id: 'three-curl-flow', kind: 'three-instanced' },
@@ -15,6 +18,14 @@ const RECIPE_FIXTURES = [
   { id: 'three-volumetric-fog', kind: 'three-raymarch', reducedMotion: true },
   { id: 'cong-lateral-current', kind: 'legacy-canvas2d' },
 ];
+const REVIEW_RECIPES = (process.env.VISUAL_REVIEW_RECIPES?.split(',').map((value) => value.trim()).filter(Boolean))
+  || RECIPE_FIXTURES.map((fixture) => fixture.id);
+const REVIEW_SECTIONS = (process.env.VISUAL_REVIEW_SECTIONS ?? '0,2')
+  .split(',')
+  .map((value) => Number(value.trim()))
+  .filter((value) => Number.isFinite(value) && value >= 0);
+const REVIEW_ARTIFACT_ROOT = process.env.VISUAL_REVIEW_DIR
+  || join(process.cwd(), 'artifacts', 'visual-review', new Date().toISOString().replace(/[:.]/g, '-'));
 
 const CHROME_CANDIDATES = [
   process.env.CHROME_BIN,
@@ -58,6 +69,9 @@ async function waitForServer(url, timeoutMs = 40_000) {
 
 async function ensureServer() {
   if (await waitForServer(BASE_URL, 1500)) return null;
+  if (REVIEW_MODE && REVIEW_URL) {
+    throw new Error(`VISUAL_REVIEW_URL is not responding: ${BASE_URL}`);
+  }
 
   console.log(`[visual-smoke] ${BASE_URL} is not responding; starting npm run dev`);
   const child = spawn('npm', ['run', 'dev'], {
@@ -214,11 +228,18 @@ class CdpPage {
   }
 }
 
-function makeRecipeUrl(fixture) {
+function makeRecipeUrl(fixture, capture = {}) {
   const url = new URL(BASE_URL);
-  url.searchParams.set('lab', '1');
+  if (REVIEW_MODE) {
+    url.searchParams.set('visualReview', '1');
+    if (capture.reviewAudio) url.searchParams.set('reviewAudio', '1');
+  } else {
+    url.searchParams.set('lab', '1');
+    url.searchParams.set('visualSmoke', '1');
+  }
   url.searchParams.set('recipe', fixture.id);
-  url.searchParams.set('visualSmoke', '1');
+  if (capture.reviewSection !== undefined) url.searchParams.set('reviewSection', String(capture.reviewSection));
+  if (capture.reviewTime !== undefined) url.searchParams.set('reviewTime', String(capture.reviewTime));
   return url.href;
 }
 
@@ -342,7 +363,7 @@ function analyzeScreenshot(base64) {
   return { mean, variance, uniqueBuckets: unique.size, width: png.width, height: png.height };
 }
 
-async function captureCanvasStats(page, rect) {
+async function captureCanvasScreenshot(page, rect) {
   const screenshot = await page.send('Page.captureScreenshot', {
     format: 'png',
     captureBeyondViewport: false,
@@ -354,7 +375,14 @@ async function captureCanvasStats(page, rect) {
       scale: 1,
     },
   });
-  return analyzeScreenshot(screenshot.data);
+  return {
+    data: screenshot.data,
+    stats: analyzeScreenshot(screenshot.data),
+  };
+}
+
+async function captureCanvasStats(page, rect) {
+  return (await captureCanvasScreenshot(page, rect)).stats;
 }
 
 async function runFixture(page, fixture) {
@@ -413,6 +441,241 @@ async function runFixture(page, fixture) {
   console.log(`[visual-smoke] ${fixture.id} (${fixture.kind}) OK · quality ${telemetry.qualityScale.toFixed(2)} · ${telemetry.frameEma.toFixed(1)}ms · variance ${stats.variance.toFixed(1)}`);
 }
 
+function safeFilePart(value) {
+  return String(value).replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'capture';
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+}
+
+async function readRuntimeSnapshot(page) {
+  const result = await page.send('Runtime.evaluate', {
+    returnByValue: true,
+    expression: `(() => {
+      const root = document.querySelector('[data-productions-theme="dark"]');
+      return {
+        recipe: root?.getAttribute('data-current-recipe-id') || null,
+        visualReview: root?.getAttribute('data-visual-review') || null,
+        visualReviewAudio: root?.getAttribute('data-visual-review-audio') || null,
+        reviewSectionIndex: root?.getAttribute('data-review-section-index') || null,
+        telemetry: window.__PRODUCTIONS_RENDER_QUALITY__ || null,
+        reviewAudioTelemetry: window.__PRODUCTIONS_REVIEW_AUDIO__ || null,
+      };
+    })()`,
+  });
+  return result.result?.value ?? {};
+}
+
+async function startReviewAudio(page) {
+  const result = await page.send('Runtime.evaluate', {
+    awaitPromise: true,
+    returnByValue: true,
+    expression: `(() => {
+      const buttons = Array.from(document.querySelectorAll('button'));
+      const playButton = buttons.find((button) => button.getAttribute('aria-label') === 'Play' && !button.disabled)
+        || buttons.find((button) => /^Play /.test(button.getAttribute('aria-label') || '') && !button.disabled);
+      if (!playButton) return { clicked: false, reason: 'No enabled Play button found' };
+      playButton.click();
+      return new Promise((resolve) => setTimeout(() => {
+        const audio = Array.from(document.querySelectorAll('audio'))[0] || null;
+        resolve({
+          clicked: true,
+          hasAudioElement: !!audio,
+          paused: audio ? audio.paused : null,
+          currentTime: audio ? audio.currentTime : null,
+          readyState: audio ? audio.readyState : null,
+        });
+      }, 1800));
+    })()`,
+  });
+  return result.result?.value ?? { clicked: false, reason: 'No result' };
+}
+
+async function runReviewCapture(page, fixture, capture, errors) {
+  const label = [
+    fixture.id,
+    capture.reducedMotion ? 'reduced-motion' : `section-${capture.reviewSection}`,
+  ].join(' ');
+  console.log(`[visual-review] capturing ${label}`);
+
+  await page.send('Emulation.setDeviceMetricsOverride', {
+    width: 1440,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await page.send('Emulation.setEmulatedMedia', {
+    features: capture.reducedMotion ? [{ name: 'prefers-reduced-motion', value: 'reduce' }] : [],
+  });
+
+  const url = makeRecipeUrl(fixture, capture);
+  const errorStart = errors.length;
+  await page.send('Page.navigate', { url });
+  await sleep(1500);
+
+  const runtime = await waitForRuntime(page, fixture.id);
+  const audioStart = capture.reviewAudio && !capture.reducedMotion
+    ? await startReviewAudio(page)
+    : null;
+  await sleep(capture.reducedMotion ? 700 : capture.reviewAudio ? 2400 : 1400);
+  const screenshot = await captureCanvasScreenshot(page, runtime.largestCanvas);
+  const snapshot = await readRuntimeSnapshot(page);
+  const telemetry = snapshot.telemetry || runtime.telemetry;
+  const reviewAudioTelemetry = snapshot.reviewAudioTelemetry || null;
+  const captureErrors = errors.slice(errorStart);
+
+  const recipeDir = join(REVIEW_ARTIFACT_ROOT, safeFilePart(fixture.id));
+  await mkdir(recipeDir, { recursive: true });
+  const fileBase = capture.reducedMotion ? 'reduced-motion' : `${capture.reviewAudio ? 'audio-' : ''}section-${capture.reviewSection}`;
+  const imageFile = `${safeFilePart(fileBase)}.png`;
+  const jsonFile = `${safeFilePart(fileBase)}.json`;
+  await writeFile(join(recipeDir, imageFile), Buffer.from(screenshot.data, 'base64'));
+
+  const entry = {
+    recipeId: fixture.id,
+    kind: fixture.kind,
+    url,
+    reducedMotion: !!capture.reducedMotion,
+    reviewAudio: !!capture.reviewAudio,
+    audioStart,
+    reviewAudioTelemetry,
+    reviewSection: capture.reviewSection,
+    canvas: runtime.largestCanvas,
+    stats: screenshot.stats,
+    telemetry,
+    errors: captureErrors,
+    image: `${safeFilePart(fixture.id)}/${imageFile}`,
+    sidecar: `${safeFilePart(fixture.id)}/${jsonFile}`,
+    capturedAt: new Date().toISOString(),
+  };
+
+  if (screenshot.stats.uniqueBuckets < 8 || screenshot.stats.variance < 4) {
+    entry.warning = `${fixture.id} appears blank or nearly blank: unique=${screenshot.stats.uniqueBuckets} variance=${screenshot.stats.variance.toFixed(2)}`;
+  }
+  await writeFile(join(recipeDir, jsonFile), `${JSON.stringify(entry, null, 2)}\n`);
+  console.log(`[visual-review] ${fixture.id} ${fileBase} · variance ${screenshot.stats.variance.toFixed(1)} · quality ${Number(telemetry?.qualityScale ?? NaN).toFixed(2)}`);
+  return entry;
+}
+
+async function writeReviewIndex(entries) {
+  const manifest = {
+    baseUrl: BASE_URL,
+    artifactRoot: REVIEW_ARTIFACT_ROOT,
+    recipes: REVIEW_RECIPES,
+    sections: REVIEW_SECTIONS,
+    generatedAt: new Date().toISOString(),
+    entries,
+  };
+  await mkdir(REVIEW_ARTIFACT_ROOT, { recursive: true });
+  await writeFile(join(REVIEW_ARTIFACT_ROOT, 'index.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+
+  const cards = entries.map((entry) => `
+    <article>
+      <img src="${escapeHtml(entry.image)}" alt="${escapeHtml(entry.recipeId)} ${entry.reducedMotion ? 'reduced motion' : `section ${entry.reviewSection}`}" />
+      <h2>${escapeHtml(entry.recipeId)}</h2>
+      <p>${entry.reducedMotion ? 'Reduced motion' : `Section ${entry.reviewSection}${entry.reviewAudio ? ' + audio' : ''}`} · ${escapeHtml(entry.kind)} · variance ${entry.stats.variance.toFixed(1)} · quality ${Number(entry.telemetry?.qualityScale ?? NaN).toFixed(2)}</p>
+      ${entry.warning ? `<p class="warning">${escapeHtml(entry.warning)}</p>` : ''}
+      ${entry.errors.length ? `<p class="warning">${entry.errors.length} console/runtime error(s)</p>` : ''}
+      <p><a href="${escapeHtml(entry.url)}">Open review URL</a> · <a href="${escapeHtml(entry.sidecar)}">JSON</a></p>
+    </article>
+  `).join('\n');
+  const html = `<!doctype html>
+<html lang="en">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Roam Productions Visual Review</title>
+<style>
+  :root { color-scheme: dark; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #08090a; color: #f5f0e8; }
+  body { margin: 0; padding: 24px; }
+  main { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 18px; }
+  article { border: 1px solid rgba(245,240,232,0.18); border-radius: 8px; padding: 12px; background: #101113; }
+  img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; background: #000; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  h2 { font-size: 15px; margin: 12px 0 4px; }
+  p { margin: 4px 0; color: #c8beb0; font-size: 13px; line-height: 1.45; }
+  a { color: #9bd3ff; }
+  .warning { color: #fbbf24; }
+</style>
+<body>
+  <h1>Roam Productions Visual Review</h1>
+  <p>Source: ${escapeHtml(BASE_URL)} · ${entries.length} captures · ${escapeHtml(manifest.generatedAt)}</p>
+  <main>
+    ${cards}
+  </main>
+</body>
+</html>
+`;
+  await writeFile(join(REVIEW_ARTIFACT_ROOT, 'index.html'), html);
+}
+
+async function runReview(page, chrome) {
+  await mkdir(REVIEW_ARTIFACT_ROOT, { recursive: true });
+  const errors = [];
+  const requestUrls = new Map();
+  page.on('Runtime.exceptionThrown', (params) => {
+    errors.push(params.exceptionDetails?.text || 'Runtime exception');
+  });
+  page.on('Log.entryAdded', (params) => {
+    if (params.entry?.level !== 'error') return;
+    const text = params.entry.text || '';
+    if (/^Failed to load resource: net::ERR_FAILED/i.test(text)) return;
+    errors.push(text);
+  });
+  page.on('Runtime.consoleAPICalled', (params) => {
+    if (params.type === 'error') {
+      errors.push(params.args?.map((arg) => arg.value || arg.description || '').join(' ') || 'console.error');
+    }
+  });
+  page.on('Network.requestWillBeSent', (params) => {
+    if (params.requestId && params.request?.url) requestUrls.set(params.requestId, params.request.url);
+  });
+  page.on('Network.loadingFailed', (params) => {
+    if (params.canceled) return;
+    const url = requestUrls.get(params.requestId) || params.requestId || 'unknown-url';
+    if (/\/favicon\.ico(?:\?|$)/.test(url)) return;
+    errors.push(`Network ${params.errorText || 'failed'}: ${url}`);
+  });
+
+  const entries = [];
+  const fixtureById = new Map(RECIPE_FIXTURES.map((fixture) => [fixture.id, fixture]));
+  for (const recipeId of REVIEW_RECIPES) {
+    const fixture = fixtureById.get(recipeId) ?? { id: recipeId, kind: 'custom' };
+    for (const reviewSection of REVIEW_SECTIONS) {
+      entries.push(await runReviewCapture(page, fixture, { reviewSection, reviewAudio: REVIEW_AUDIO }, errors));
+    }
+    entries.push(await runReviewCapture(page, fixture, { reviewSection: 0, reducedMotion: true }, errors));
+  }
+
+  if (chrome.renderErrors.length) {
+    entries.push({
+      recipeId: '__chrome__',
+      kind: 'render-errors',
+      errors: chrome.renderErrors,
+      stats: { variance: 0 },
+      telemetry: null,
+      image: '',
+      sidecar: '',
+      reducedMotion: false,
+    });
+  }
+  await writeReviewIndex(entries);
+
+  const failed = entries.filter((entry) => entry.warning || entry.errors?.length);
+  console.log(`[visual-review] wrote ${entries.length} captures to ${REVIEW_ARTIFACT_ROOT}`);
+  console.log(`[visual-review] open ${join(REVIEW_ARTIFACT_ROOT, 'index.html')}`);
+  if (failed.length) {
+    throw new Error(`Visual review captured ${failed.length} warning/error item(s). See ${join(REVIEW_ARTIFACT_ROOT, 'index.json')}.`);
+  }
+  if (chrome.renderErrors.length) {
+    throw new Error(`Chrome reported render errors:\n${chrome.renderErrors.map((error) => `  - ${error}`).join('\n')}`);
+  }
+}
+
 async function main() {
   const server = await ensureServer();
   const chrome = await launchChrome();
@@ -424,12 +687,17 @@ async function main() {
     await page.send('Page.enable');
     await page.send('Runtime.enable');
     await page.send('Log.enable');
+    await page.send('Network.enable');
 
-    for (const fixture of RECIPE_FIXTURES) {
-      await runFixture(page, fixture);
-    }
-    if (chrome.renderErrors.length) {
-      throw new Error(`Chrome reported render errors:\n${chrome.renderErrors.map((error) => `  - ${error}`).join('\n')}`);
+    if (REVIEW_MODE) {
+      await runReview(page, chrome);
+    } else {
+      for (const fixture of RECIPE_FIXTURES) {
+        await runFixture(page, fixture);
+      }
+      if (chrome.renderErrors.length) {
+        throw new Error(`Chrome reported render errors:\n${chrome.renderErrors.map((error) => `  - ${error}`).join('\n')}`);
+      }
     }
   } finally {
     page?.close();

@@ -62,6 +62,7 @@ interface Props {
   onPanelCollapsedChange: (collapsed: boolean) => void;
   audioSignalRef: MutableRefObject<AudioSignal>;
   initialSelectionReady?: boolean;
+  disableAudio?: boolean;
 }
 
 interface BandRange {
@@ -73,6 +74,31 @@ interface FrequencyBands {
   bass: BandRange;
   mids: BandRange;
   highs: BandRange;
+}
+
+interface ReviewAudioTelemetry {
+  currentTime: number;
+  duration: number;
+  paused: boolean;
+  readyState: number;
+  event: string;
+  error?: string;
+}
+
+type ReviewAudioWindow = Window & {
+  __PRODUCTIONS_REVIEW_AUDIO__?: ReviewAudioTelemetry;
+};
+
+function writeReviewAudioTelemetry(audio: HTMLAudioElement, event: string, error?: string) {
+  if (typeof window === 'undefined') return;
+  (window as ReviewAudioWindow).__PRODUCTIONS_REVIEW_AUDIO__ = {
+    currentTime: audio.currentTime,
+    duration: Number.isFinite(audio.duration) ? audio.duration : 0,
+    paused: audio.paused,
+    readyState: audio.readyState,
+    event,
+    ...(error ? { error } : {}),
+  };
 }
 
 type BrowserAudioContext = typeof AudioContext;
@@ -111,6 +137,12 @@ type NavigatorWithWakeLock = Omit<Navigator, 'wakeLock'> & {
 
 function encodeSrc(url: string): string {
   try { return new URL(url).href; } catch { return url; }
+}
+
+function albumYearLabel(album: Album | undefined): string {
+  const date = album?.date?.trim();
+  if (!date) return '';
+  return date.match(/\b\d{4}\b/)?.[0] ?? date;
 }
 
 function selectionsMatch(left: PlayableSelection | undefined, right: PlayableSelection): boolean {
@@ -197,7 +229,7 @@ const INFO_SECTIONS = [
    in the compact persistent transport.
 ──────────────────────────────────────────────────────────────── */
 
-export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex, onAlbumChange, onPlayingChange, onPlaybackActiveChange, onProgressChange, onCurrentTimeChange, onTrackIndexChange, onRandomSong, onRandomPlaybackSelection, randomPlaybackRequest, randomMode, onRandomModeChange, loading, error, cardBg, cardBorder, panelCollapsed, onPanelCollapsedChange, audioSignalRef, initialSelectionReady = true }: Props) {
+export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex, onAlbumChange, onPlayingChange, onPlaybackActiveChange, onProgressChange, onCurrentTimeChange, onTrackIndexChange, onRandomSong, onRandomPlaybackSelection, randomPlaybackRequest, randomMode, onRandomModeChange, loading, error, cardBg, cardBorder, panelCollapsed, onPanelCollapsedChange, audioSignalRef, initialSelectionReady = true, disableAudio = false }: Props) {
   const playbackMode = getProductionPlaybackMode();
   const iosListeningMode = playbackMode === 'ios-listening';
   const [trackIndex, setTrackIndex] = useState(0);
@@ -628,6 +660,24 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
   }, [getShuffleSelection, selectionToPlaybackTarget]);
 
   useEffect(() => {
+    if (disableAudio) {
+      const sharedSignal = audioSignalRef.current;
+      const cleanupTargetSignal = targetSignalRef.current;
+      startAnalysisLoopRef.current = () => undefined;
+      stopAnalysisLoopRef.current = () => undefined;
+      setIsPlaying(false);
+      setBuffering(false);
+      setTrackError(false);
+      setCurrentTime(0);
+      setDuration(0);
+      onPlaybackActiveChange(false);
+      onProgressChange(0);
+      onCurrentTimeChange?.(0);
+      resetAudioSignal(cleanupTargetSignal);
+      resetAudioSignal(sharedSignal);
+      return () => undefined;
+    }
+
     const audio = new Audio();
     const preloadAudio = new Audio();
     const sharedSignal = audioSignalRef.current;
@@ -643,6 +693,7 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
     const handleTimeUpdate = () => {
       const fallbackDuration = albumsRef.current[albumIndexRef.current]?.tracks[trackIndexRef.current]?.duration || 0;
       const progressDuration = audio.duration && isFinite(audio.duration) ? audio.duration : fallbackDuration;
+      writeReviewAudioTelemetry(audio, 'timeupdate');
       setCurrentTime(audio.currentTime);
       onCurrentTimeChange?.(audio.currentTime);
       if (progressDuration) {
@@ -656,6 +707,7 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
     };
     const handleLoadedMetadata = () => {
       const fallbackDuration = albumsRef.current[albumIndexRef.current]?.tracks[trackIndexRef.current]?.duration || 0;
+      writeReviewAudioTelemetry(audio, 'loadedmetadata');
       setDuration(audio.duration && isFinite(audio.duration) ? audio.duration : fallbackDuration);
       setTrackError(false);
       setBuffering(false);
@@ -663,6 +715,7 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
     const handleCanPlay = () => { if (playbackIntentRef.current) setBuffering(false); };
     const handlePlaying = () => {
       if (!playbackIntentRef.current) return;
+      writeReviewAudioTelemetry(audio, 'playing');
       internalTransitionRef.current = false;
       setIsPlaying(true);
       setBuffering(false);
@@ -692,6 +745,7 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
         audio.pause();
         return;
       }
+      writeReviewAudioTelemetry(audio, 'play');
       normalizePlaybackRate(audio);
       internalTransitionRef.current = false;
       setIsPlaying(true);
@@ -703,6 +757,7 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
         return;
       }
       if (!audio.ended) {
+        writeReviewAudioTelemetry(audio, 'pause');
         playbackIntentRef.current = false;
         playbackRequestIdRef.current += 1;
         setIsPlaying(false);
@@ -744,6 +799,7 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
       playAudioTarget(nextTarget);
     };
     const handleError = () => {
+      writeReviewAudioTelemetry(audio, 'error', audio.error?.message || `media-error-${audio.error?.code ?? 'unknown'}`);
       setTrackError(true);
       setBuffering(false);
       onPlaybackActiveChange(false);
@@ -993,9 +1049,10 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
       resetAudioSignal(cleanupTargetSignal);
       resetAudioSignal(sharedSignal);
     };
-  }, [audioSignalRef, ensureAudioAnalysis, getNextPlaybackTarget, iosListeningMode, onAlbumChange, onCurrentTimeChange, onPlaybackActiveChange, onProgressChange, playAudioTarget, releaseWakeLock, requestWakeLock, resetAnalysisState, setIsPlaying, stopAudioPlayback, suspendAudioAnalysis]);
+  }, [audioSignalRef, disableAudio, ensureAudioAnalysis, getNextPlaybackTarget, iosListeningMode, onAlbumChange, onCurrentTimeChange, onPlaybackActiveChange, onProgressChange, playAudioTarget, releaseWakeLock, requestWakeLock, resetAnalysisState, setIsPlaying, stopAudioPlayback, suspendAudioAnalysis]);
 
   useEffect(() => {
+    if (disableAudio) return;
     const preloadAudio = preloadAudioRef.current;
     if (!preloadAudio) return;
 
@@ -1013,9 +1070,10 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
     preloadAudio.pause();
     preloadAudio.src = nextSrc;
     preloadAudio.load();
-  }, [albumIndex, albums, getNextPlaybackTarget, randomMode, trackIndex]);
+  }, [albumIndex, albums, disableAudio, getNextPlaybackTarget, randomMode, trackIndex]);
 
   useEffect(() => {
+    if (disableAudio) return;
     if (skipEffectRef.current) { skipEffectRef.current = false; return; }
     const audio = audioRef.current; const album = albums[albumIndex];
     if (!audio || !album) return;
@@ -1040,7 +1098,7 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
       setCurrentTime(0);
       setDuration(0);
     }
-  }, [trackIndex, albumIndex, albums, stopAudioPlayback]);
+  }, [trackIndex, albumIndex, albums, disableAudio, stopAudioPlayback]);
 
   useEffect(() => {
     if (iosListeningMode) {
@@ -1339,8 +1397,8 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
   const hasDescription = descriptionParagraphs.length > 0;
   const hasCredits = albumCredits.length > 0;
   const albumIsAvailable = isPlayableAlbum(album);
-  const playbackControlsAvailable = albumIsAvailable && (!isPreviewingDifferentAlbum || album.tracks.some((item) => !!item.src));
-  const activePlaybackControlsAvailable = playingAlbumIsAvailable && !!playingTrack?.src;
+  const playbackControlsAvailable = !disableAudio && albumIsAvailable && (!isPreviewingDifferentAlbum || album.tracks.some((item) => !!item.src));
+  const activePlaybackControlsAvailable = !disableAudio && playingAlbumIsAvailable && !!playingTrack?.src;
   const miniAlbum = playingAlbum ?? album;
   const miniTrack = playingTrack ?? track;
   const nowPlayingAlbum = playingAlbum ?? album;
@@ -1357,9 +1415,11 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
   ].filter((item): item is string => Boolean(item));
   const activeDuration = duration || playingTrack?.duration || 0;
   const activeProgress = activeDuration > 0 ? Math.max(0, Math.min(100, (currentTime / activeDuration) * 100)) : 0;
+  const miniAlbumYear = albumYearLabel(miniAlbum);
   const miniMeta = [miniAlbum?.name ?? 'Roam', miniAlbum?.artist].filter(Boolean).join(' · ');
   const miniTimeLabel = activeDuration ? `${formatTime(currentTime)} / ${formatTime(activeDuration)}` : '--:--';
   const showMobileTransport = mobileTransportUnlocked && activePlaybackControlsAvailable;
+  const renderedAlbumYear = albumYearLabel(album);
 
   const prevTrackCb = useCallback(() => navigateTrack(-1), [navigateTrack]);
   const nextTrackCb = useCallback(() => navigateTrack(1), [navigateTrack]);
@@ -1689,8 +1749,13 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
                       ) : i + 1}
                     </span>
-                    <span className="flex min-w-0 items-center gap-2">
+                    <span className="flex min-w-0 items-baseline gap-2">
                       <span className="text-[14px] font-medium leading-snug break-words">{t.title}</span>
+                      {renderedAlbumYear ? (
+                        <span className="shrink-0 text-[10px] tabular-nums" style={{ color: C3, opacity: isUnavailable ? 0.42 : 0.62 }}>
+                          {renderedAlbumYear}
+                        </span>
+                      ) : null}
                     </span>
                     <span className="text-right text-[12px] tabular-nums" style={{ color: isUnavailable ? 'var(--explorer-track-muted)' : C3 }}>{durationLabel}</span>
                   </button>
@@ -1802,7 +1867,8 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
                 <p className="explorer-mini-title truncate font-semibold leading-tight" style={{ color: C1 }} title={miniTrack?.title ?? 'Select a track'}>
                   {miniTrack?.title ?? 'Select a track'}
                 </p>
-                <p className="explorer-mini-meta explorer-mini-meta-line mt-1 leading-snug" style={{ color: C3 }} title={miniMeta}>
+                <p className="explorer-mini-meta explorer-mini-meta-line mt-1 leading-snug" style={{ color: C3 }} title={[miniAlbumYear, miniMeta].filter(Boolean).join(' · ')}>
+                  {miniAlbumYear ? <span className="explorer-mini-year">{miniAlbumYear}</span> : null}
                   {miniMeta ? <span className="explorer-mini-meta-text">{miniMeta}</span> : null}
                 </p>
               </div>
@@ -2123,8 +2189,13 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
                             i + 1
                           )}
                         </span>
-                        <span className="flex min-w-0 items-center gap-2">
+                        <span className="flex min-w-0 items-baseline gap-2">
                           <span className="text-[13px] font-medium leading-snug break-words">{t.title}</span>
+                          {renderedAlbumYear ? (
+                            <span className="shrink-0 text-[10px] tabular-nums" style={{ color: C3, opacity: isUnavailable ? 0.38 : 0.54 }}>
+                              {renderedAlbumYear}
+                            </span>
+                          ) : null}
                         </span>
                         <span className="text-right text-[11px] tabular-nums" style={{ color: C3, opacity: 0.58 }}>
                           {durationLabel}

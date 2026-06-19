@@ -3,7 +3,7 @@ import { DEFAULT_RECIPE_ID, GLOBAL_DISABLED_RECIPE_IDS, getExplorerRecipe, isGlo
 import { getSectionMood } from './section-moods';
 import { normalizeSectionTimes } from './section-times';
 import { buildStoryboardSequence, expandSectionRoles } from './storyboard';
-import type { BeatGrid, ExplorerRecipe, ExplorerRecipeId, ExplorerStoryboardTemplate, SectionPaletteConfig, SectionVisualEvent, TrackVisualConfig, TrackVisualPlan, VisualPlanEventConfig, VisualStoryboard } from './types';
+import type { BeatGrid, ExplorerRecipe, ExplorerRecipeId, ExplorerStoryboardSectionRole, ExplorerStoryboardTemplate, SectionPaletteConfig, SectionVisualEvent, TrackVisualConfig, TrackVisualPlan, VisualPlanEventConfig, VisualStoryboard } from './types';
 import type { VisualParams } from '../visualizer';
 
 /* ── Section Planning ────────────────────────────────────────
@@ -18,7 +18,6 @@ export const ARTWORK_OPENER_RECIPES: readonly ExplorerRecipeId[] = [
   'cong-artwork-mosh-soft-scan',
   'cong-artwork-mosh-horizontal-slice',
   'cong-artwork-mosh-pixel-islands',
-  'cong-artwork-datamosh-rain-evolution',
   'cong-artwork-mosh-left-flow',
   'cong-artwork-mosh-storm-open',
   'cong-artwork-mosh-fracture',
@@ -30,7 +29,6 @@ export const ARTWORK_OPENER_RECIPES: readonly ExplorerRecipeId[] = [
 const GENERATED_MOSH_ACCENT_RECIPES: readonly ExplorerRecipeId[] = [
   'cong-artwork-mosh-soft-scan',
   'cong-artwork-mosh-pixel-islands',
-  'cong-artwork-datamosh-rain-evolution',
   'cong-artwork-mosh-left-flow',
   'cong-artwork-mosh-storm-open',
   'cong-artwork-mosh-fracture',
@@ -43,7 +41,6 @@ const GENERATED_MOSH_ACCENT_RECIPES: readonly ExplorerRecipeId[] = [
 ] as const;
 
 const GENERATIVE_VARIETY_SEQUENCE: readonly ExplorerRecipeId[] = [
-  'cong-landscape-og-current',
   'cong-rain-shower',
   'cong-green-galaxy',
   'native-warp-mesh-deep',
@@ -52,8 +49,6 @@ const GENERATIVE_VARIETY_SEQUENCE: readonly ExplorerRecipeId[] = [
   'cong-cloud-orbit',
   'cong-contour-lines',
   'cong-planet-core',
-  'native-flow-field-drift',
-  'native-flow-field-veil',
   'cong-artwork-mosh-minimal-ghost',
   'cong-lateral-current',
   'cong-lateral-cascade',
@@ -61,7 +56,6 @@ const GENERATIVE_VARIETY_SEQUENCE: readonly ExplorerRecipeId[] = [
   'cong-artwork-mosh-pixel-sort',
   'cong-artwork-mosh-slit-scan',
   'cong-particle-current',
-  'cong-cloud-again-generative',
   'cong-landscape-flow',
   'cong-artwork-mosh-pixel-islands',
   'cong-landscape-spiral',
@@ -76,7 +70,6 @@ const GENERATIVE_VARIETY_SEQUENCE: readonly ExplorerRecipeId[] = [
   'native-attractor-drift',
   'native-attractor-surge',
   'native-aurora-veil',
-  'native-sidewind-drift',
   'native-gravity-current',
   'three-curl-flow',
   'three-volumetric-fog',
@@ -99,8 +92,23 @@ export const STATIC_ROTATION_POOL_IDS: readonly ExplorerRecipeId[] = Array.from(
 const DEFAULT_TRANSITION_MS = 1800;
 const GENERATED_CHAPTER_TRANSITION_MS = 3000;
 const GENERATED_INTERNAL_TRANSITION_MS = 1200;
-const MOSH_BASE_RECIPE_ID = 'cong-artwork-datamosh-rain-evolution';
-const GENERATED_INTRO_RECIPE_ID = 'native-flow-field-veil';
+
+// Per-role base visual params for generated (non-authored) sections.
+// These create a perceivable arc even when the kernel doesn't switch.
+// turbulence = noise complexity, density = layer weight, drift = speed,
+// glow = accent brightness, shimmer = fine detail.
+const ROLE_PARAMS: Readonly<Record<ExplorerStoryboardSectionRole, Partial<import('../visualizer').VisualParams>>> = {
+  intro:     { turbulence: 0.20, density: 0.30, drift: 0.25, glow: 0.22, shimmer: 0.15 },
+  establish: { turbulence: 0.30, density: 0.42, drift: 0.32, glow: 0.28, shimmer: 0.20 },
+  drift:     { turbulence: 0.22, density: 0.35, drift: 0.42, glow: 0.24, shimmer: 0.25 },
+  build:     { turbulence: 0.50, density: 0.58, drift: 0.50, glow: 0.38, shimmer: 0.30 },
+  lift:      { turbulence: 0.64, density: 0.68, drift: 0.60, glow: 0.50, shimmer: 0.40 },
+  peak:      { turbulence: 0.82, density: 0.82, drift: 0.72, glow: 0.70, shimmer: 0.58 },
+  release:   { turbulence: 0.40, density: 0.48, drift: 0.40, glow: 0.36, shimmer: 0.28 },
+  afterglow: { turbulence: 0.18, density: 0.28, drift: 0.22, glow: 0.20, shimmer: 0.12 },
+};
+const MOSH_BASE_RECIPE_ID = 'three-artwork-flux';
+const GENERATED_INTRO_RECIPE_ID = 'cong-rain-shower';
 export const DEFAULT_TRACK_BPM = 120;
 const ARCHIVED_RECIPE_REPLACEMENTS: Readonly<Record<string, ExplorerRecipeId>> = {
   'cong-artwork-datamosh-left-flow': MOSH_BASE_RECIPE_ID,
@@ -195,7 +203,7 @@ export function pickArtworkOpener(
     'cong-artwork-mosh-left-flow',
     'cong-artwork-mosh-storm-open',
     'cong-artwork-mosh-fracture',
-    'cong-artwork-datamosh-rain-evolution',
+    'three-artwork-flux',
     'cong-artwork-mosh-pixel-islands',
     'cong-artwork-mosh-horizontal-slice',
   ];
@@ -252,14 +260,11 @@ function buildDefaultGenerativeSequence(
   const safePoolSet = new Set(safePool);
   const introCandidates: readonly ExplorerRecipeId[] = [
     GENERATED_INTRO_RECIPE_ID,
-    'cong-landscape-og-current',
     'cong-rain-shower',
-    'cong-cloud-again-generative',
     'cong-lateral-current',
     'native-kaleido-fold-ambient',
     'native-attractor-drift',
     'native-aurora-veil',
-    'native-sidewind-drift',
     'three-curl-flow',
     'three-caustics',
   ];
@@ -898,7 +903,7 @@ export function buildTrackVisualPlan(
     ? sectionTimes
     : padSectionTimes(sectionTimes, trackDuration, Math.max(6, sectionTimes.length + 1));
   const sectionCount = Math.max(effectiveSectionTimes.length + 1, visualConfig?.steps?.length ?? 0, 1);
-  const generatedChapterCount = Math.min(3, sectionCount);
+  const generatedChapterCount = Math.min(4, sectionCount);
   const sequenceSlotCount = hasPinnedVisualStructure ? sectionCount : generatedChapterCount;
   const VARIED_TEMPLATES = [
     'ambient-arc', 'lift-arc', 'pulse-arc',
@@ -969,6 +974,8 @@ export function buildTrackVisualPlan(
   const defaultTransitionMs = sanitizeTransitionMs(visualConfig?.defaultTransitionMs);
   const singleSketch = visualConfig?.singleSketch ?? hasPinnedVisualStructure;
   const singleSketchRecipeId = sequence[0] ?? fallbackRecipeId;
+  // Expand section roles once so each generated step can read its role without re-computing.
+  const sectionRoles = expandSectionRoles(sectionCount, effectiveStoryboard);
   const steps = Array.from({ length: sectionCount }, (_, index) => {
     const step = visualConfig?.steps?.[index];
     const mood = getSectionMood(step?.moodId);
@@ -980,6 +987,13 @@ export function buildTrackVisualPlan(
       ? GENERATED_CHAPTER_TRANSITION_MS
       : GENERATED_INTERNAL_TRANSITION_MS;
 
+    // For generated sections without authored params, derive from section role so
+    // every section has a distinct visual target even when the kernel stays the same.
+    const role = sectionRoles[index] ?? 'establish';
+    const generatedParams = !hasPinnedVisualStructure && !step?.params && !mood?.params
+      ? ROLE_PARAMS[role]
+      : undefined;
+
     return {
       recipeId: step?.recipeId
         ? (singleSketch ? singleSketchRecipeId : resolveProductionRecipeId(step.recipeId) ?? step.recipeId)
@@ -989,7 +1003,9 @@ export function buildTrackVisualPlan(
         ? sanitizeTransitionMs(step?.transitionMs ?? defaultTransitionMs)
         : generatedTransitionMs,
       ...(step?.moodId ? { moodId: step.moodId } : {}),
-      ...(mergeParams(mood?.params, step?.params) ? { params: mergeParams(mood?.params, step?.params) } : {}),
+      ...(mergeParams(mood?.params, step?.params) ?? generatedParams
+        ? { params: mergeParams(mood?.params, step?.params) ?? generatedParams }
+        : {}),
       ...(mergePalette(mood?.palette, step?.palette) ? { palette: mergePalette(mood?.palette, step?.palette) } : {}),
       ...(step?.events?.length ? { events: step.events } : {}),
     };

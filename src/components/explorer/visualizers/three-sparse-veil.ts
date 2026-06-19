@@ -78,19 +78,19 @@ const FRAGMENT_SHADER = /* glsl */ `
     mist = clamp(mist + breath * 0.08, 0.0, 1.0);
 
     float beat = beatPulse();
-    float base = 0.24 + uLevel * 0.28 + uSectionProgress * 0.22 + uGlow * 0.2;
-    float brightness = (base + uRipple * 0.35) * beat;
+    float base = 0.46 + uLevel * 0.36 + uSectionProgress * 0.28 + uGlow * 0.24;
+    float brightness = (base + uRipple * 0.40) * beat;
 
-    // Deep monochromatic: stay close to bg, lift with very subtle tonal mid
-    float mistLift = smoothstep(0.28, 0.88, mist) * brightness;
-    float horizon = smoothstep(0.96, 0.22, vUv.y) * (0.06 + uSectionProgress * 0.08);
+    // Atmospheric mist: clearly visible tonal lift, moody not blank
+    float mistLift = smoothstep(0.18, 0.75, mist) * brightness;
+    float horizon = smoothstep(0.96, 0.22, vUv.y) * (0.12 + uSectionProgress * 0.14);
 
     vec3 col = uColorBg;
-    col = mix(col, uColorMid, mistLift * (0.38 + uGlow * 0.22));
-    col = mix(col, uColorA,   mistLift * (0.12 + uSectionProgress * 0.18));
+    col = mix(col, uColorMid, mistLift * (0.70 + uGlow * 0.28));
+    col = mix(col, uColorA,   mistLift * (0.26 + uSectionProgress * 0.32));
     col += uColorMid * horizon;
     // Event ripple adds a faint brightening wash
-    col += uColorA * pow(mist, 2.0) * uRipple * (0.18 + uGlow * 0.12);
+    col += uColorA * pow(mist, 2.0) * uRipple * (0.28 + uGlow * 0.16);
 
     col = mix(uColorBg, col, exclusionMask());
     col = applyGrainVignette(col, vUv, 0.022, 0.48);

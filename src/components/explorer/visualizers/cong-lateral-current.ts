@@ -77,8 +77,6 @@ export function createCongLateralCurrent(): Visualizer {
   let currentBandTarget = 0;
   let colorTurn = 0;
   let colorTurnTarget = 0;
-  let sunPulse = 0;
-  let sunPulseTarget = 0;
 
   function resetParticle(particle: LateralParticle, fromLeft = true): void {
     const margin = 80 + particle.depth * 80;
@@ -209,8 +207,6 @@ export function createCongLateralCurrent(): Visualizer {
       currentBandTarget = 0;
       colorTurn = 0;
       colorTurnTarget = 0;
-      sunPulse = 0;
-      sunPulseTarget = 0;
       buildParticles();
     },
 
@@ -231,15 +227,13 @@ export function createCongLateralCurrent(): Visualizer {
       sectionGlow = mix(sectionGlow, sectionGlowTarget, 1 - Math.pow(0.001, dt));
       currentBand = mix(currentBand, currentBandTarget, 1 - Math.pow(0.001, dt));
       colorTurn = mix(colorTurn, colorTurnTarget, 1 - Math.pow(0.001, dt));
-      sunPulse = mix(sunPulse, sunPulseTarget, 1 - Math.pow(0.001, dt));
       lineLiftTarget = Math.max(0, lineLiftTarget - dt * 0.05);
-      sunPulseTarget = Math.max(0, sunPulseTarget - dt * 0.06);
       time += dt * (0.36 + params.drift * 0.8 + audio.energy * 0.24 + cue.motion * 0.28);
 
       const speedScale = (0.32 + params.drift * 0.82 + growth * 0.78 + audio.energy * 0.22 + cue.motion * 0.34)
         * (1 - afterglow * 0.22);
       const flowScale = tuning.flowScale * (0.72 + params.turbulence * 1.45 + growth * 0.45);
-      const lateralBias = 0.42 + growth * 0.26 + audio.bass * 0.12;
+      const lateralBias = 0.26 + growth * 0.16 + audio.bass * 0.07;
 
       for (const particle of particles) {
         particle.px = particle.x;
@@ -252,8 +246,8 @@ export function createCongLateralCurrent(): Visualizer {
         );
         const angle = (noise - 0.5) * Math.PI * tuning.noiseStrength * (1.25 + params.turbulence * 1.6)
           + Math.sin(time * 0.4 + particle.phase) * 0.1;
-        const targetVx = lateralBias + Math.cos(angle) * 0.58;
-        const targetVy = Math.sin(angle) * (0.36 + params.turbulence * 0.62 + growth * 0.22);
+        const targetVx = lateralBias + Math.cos(angle) * 0.42;
+        const targetVy = Math.sin(angle) * (0.28 + params.turbulence * 0.46 + growth * 0.16);
 
         particle.vx = mix(particle.vx, targetVx, 0.045 + particle.depth * 0.035);
         particle.vy = mix(particle.vy, targetVy, 0.04 + particle.depth * 0.03);
@@ -291,35 +285,6 @@ export function createCongLateralCurrent(): Visualizer {
       band.addColorStop(1, `rgba(${bandColor[0]},${bandColor[1]},${bandColor[2]},0)`);
       ctx.fillStyle = band;
       ctx.fillRect(0, 0, w, h);
-
-      const sunX = w * 0.72;
-      const sunY = h * (0.28 + Math.sin(time * 0.08) * 0.012);
-      const sunRadius = Math.max(58, Math.min(w, h) * tuning.sunRadius);
-      const sunAlpha = tuning.sunAlpha * (0.82 + curParams.glow * 0.28 + sectionGlow * 0.24 + sunPulse * 0.36);
-      const sunColor = cue.mixForegroundColor([
-        Math.round(mix(wr, 255, 0.34)),
-        Math.round(mix(wg, 158, 0.22)),
-        Math.round(mix(wb, 72, 0.18)),
-      ], 17.2);
-      const sunGlow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunRadius * 3.2);
-      sunGlow.addColorStop(0, `rgba(${sunColor[0]},${sunColor[1]},${sunColor[2]},${sunAlpha * 0.52})`);
-      sunGlow.addColorStop(0.22, `rgba(${sunColor[0]},${sunColor[1]},${sunColor[2]},${sunAlpha * 0.28})`);
-      sunGlow.addColorStop(0.58, `rgba(${sunColor[0]},${sunColor[1]},${sunColor[2]},${sunAlpha * 0.08})`);
-      sunGlow.addColorStop(1, `rgba(${sunColor[0]},${sunColor[1]},${sunColor[2]},0)`);
-      ctx.fillStyle = sunGlow;
-      ctx.fillRect(sunX - sunRadius * 3.2, sunY - sunRadius * 3.2, sunRadius * 6.4, sunRadius * 6.4);
-
-      ctx.save();
-      ctx.globalCompositeOperation = 'screen';
-      const sunCore = ctx.createRadialGradient(sunX, sunY, sunRadius * 0.08, sunX, sunY, sunRadius);
-      sunCore.addColorStop(0, `rgba(255,244,205,${sunAlpha * 0.62})`);
-      sunCore.addColorStop(0.46, `rgba(${sunColor[0]},${sunColor[1]},${sunColor[2]},${sunAlpha * 0.42})`);
-      sunCore.addColorStop(1, `rgba(${sunColor[0]},${sunColor[1]},${sunColor[2]},${sunAlpha * 0.08})`);
-      ctx.fillStyle = sunCore;
-      ctx.beginPath();
-      ctx.arc(sunX, sunY, sunRadius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
 
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
@@ -422,7 +387,6 @@ export function createCongLateralCurrent(): Visualizer {
       if (event.type === 'glow-pulse' || event.type === 'grain-bloom' || event.type === 'veil-sweep') {
         lineLiftTarget = Math.max(lineLiftTarget, 0.16 + event.intensity * 0.34);
         sectionGlowTarget = Math.max(sectionGlowTarget, 0.2 + event.intensity * 0.44);
-        sunPulseTarget = Math.max(sunPulseTarget, 0.22 + event.intensity * 0.42);
       }
       if (event.type === 'color-morph' || event.type === 'palette-morph') {
         if (!event.target || event.target === 'particles' || event.target === 'foreground' || event.target === 'all') {
@@ -431,7 +395,6 @@ export function createCongLateralCurrent(): Visualizer {
         }
         if (event.target === 'background') {
           afterglowTarget = Math.max(afterglowTarget, event.intensity * 0.45);
-          sunPulseTarget = Math.max(sunPulseTarget, event.intensity * 0.28);
         }
       }
       if (event.type !== 'section-cue') {

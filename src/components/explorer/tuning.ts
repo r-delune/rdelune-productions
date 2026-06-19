@@ -111,8 +111,6 @@ export interface CongLateralCurrentTuning {
   sizeJitter: number;
   colorJitter: number;
   lineAlpha: number;
-  sunRadius: number;
-  sunAlpha: number;
 }
 
 export interface CongLateralCascadeTuning {
@@ -393,20 +391,6 @@ export interface NativeAuroraVeilTuning {
   tensionMix: number;
 }
 
-export interface NativeSidewindDriftTuning {
-  kernel: 'native-sidewind-drift';
-  moteCount: number;
-  windBase: number;
-  gustSpeed: number;
-  gustAmp: number;
-  windAngleDeg: number;
-  horizonY: number;
-  horizonAlpha: number;
-  streakLength: number;
-  moteAlpha: number;
-  fillAlpha: number;
-}
-
 export interface NativeGravityCurrentTuning {
   kernel: 'native-gravity-current';
   particleCount: number;
@@ -450,13 +434,6 @@ export interface ThreeCausticsTuning {
   additiveAlpha: number;  // glint additive gain
 }
 
-export interface ThreeFresnelCoreTuning {
-  kernel: 'three-fresnel-core';
-  coreRadius: number;   // normalised SDF sphere radius (0..1 screen-height units)
-  rimWidth: number;     // Fresnel rim falloff width relative to radius
-  glowRadius: number;   // outer glow cloud extent relative to radius
-}
-
 export interface ThreeFlatMaterialTuning {
   kernel: 'three-flat-material';
   maxLayers: number;    // ridged grain ceiling (runtime uLayers scales below)
@@ -491,6 +468,17 @@ export interface ThreeSparseVeilTuning {
   breathAmplitude: number; // slow ambient breathing amplitude
 }
 
+export interface ThreeFluidAdvectionTuning {
+  kernel: 'three-fluid-advection';
+  viscosity: number;         // per-frame velocity damping (0.90–0.98)
+  baseCurlStrength: number;  // curl impulse at section 0 (0.002–0.008)
+  peakCurlStrength: number;  // curl impulse at section peak (0.01–0.025)
+  noiseScale: number;        // spatial frequency of curl field (1.5–4.0)
+  driftSpeed: number;        // time drift of the noise field (0.02–0.08)
+  dissipation: number;       // per-frame dye decay (0.992–0.999)
+  injectRadius: number;      // injection plume radius in UV space (0.06–0.18)
+}
+
 export interface ThreeReactionDiffusionTuning {
   kernel: 'three-reaction-diffusion';
   diffusionA: number;  // diffusion rate of species A (typically ~1.0)
@@ -519,24 +507,23 @@ export type VisualizerTuningConfig =
   | NativeReactionVeilTuning
   | NativeAttractorDriftTuning
   | NativeAuroraVeilTuning
-  | NativeSidewindDriftTuning
   | NativeGravityCurrentTuning
   | ThreeCurlFlowTuning
   | ThreeVolumetricFogTuning
   | ThreeCausticsTuning
   | ThreeArtworkFluxTuning
-  | ThreeFresnelCoreTuning
   | ThreeFlatMaterialTuning
   | ThreeLightRaysTuning
   | ThreeSparseVeilTuning
+  | ThreeFluidAdvectionTuning
   | ThreeReactionDiffusionTuning;
 
 export const VISUALIZER_TUNINGS = {
   'cong-cloud-orbit-default': {
     kernel: 'cong-cloud-orbit',
-    particleCount: 980,
+    particleCount: 1400,
     maxBursts: 5,
-    maxRadiusScale: 0.38,
+    maxRadiusScale: 0.56,
     centerX: 0.34,
     centerY: 0.42,
     centerXMotion: 0.04,
@@ -575,7 +562,7 @@ export const VISUALIZER_TUNINGS = {
     slantBase: 3,
     orbAlpha: 0.055,
     pulseAlpha: 0,
-    rainSpeedScale: 0.58,
+    rainSpeedScale: 0.34,
     dropIndependence: 0.86,
   },
   'cong-contour-lines-default': {
@@ -624,15 +611,13 @@ export const VISUALIZER_TUNINGS = {
     seed: 6841,
     flowScale: 0.0021,
     noiseStrength: 0.96,
-    speed: 72,
+    speed: 42,
     trailAlpha: 0.046,
     particleAlpha: 0.56,
     pointSize: 0.56,
     sizeJitter: 1.18,
     colorJitter: 12,
-    lineAlpha: 0.065,
-    sunRadius: 0.118,
-    sunAlpha: 0.62,
+    lineAlpha: 0.052,
   },
   'cong-lateral-cascade-default': {
     kernel: 'cong-lateral-cascade',
@@ -683,45 +668,6 @@ export const VISUALIZER_TUNINGS = {
     speed: 0.72,
     trailAlpha: 0.04,
     rayAlpha: 0.055,
-    maxBursts: 6,
-  },
-  'cong-landscape-og-current-default': {
-    kernel: 'cong-generative-particles',
-    mode: 'landscape-og',
-    particleCount: 980,
-    seed: 1729,
-    noiseOctaves: 5,
-    noiseFalloff: 0.56,
-    fieldScale: 0.0062,
-    fieldStrength: 1.18,
-    speed: 68,
-    trailAlpha: 0.055,
-    blendMode: 'lighter',
-    emitter: 'left-edge',
-    field: 'landscape-dual-flow',
-    renderer: 'streaks',
-    feedbackBlur: 0,
-    particleAlpha: 0.72,
-    pointSize: 1.15,
-    streakLength: 16,
-    centerX: 0.34,
-    centerY: 0.48,
-    laneSeparation: 0.54,
-    overlayAlpha: 0.05,
-    lineworkAlpha: 1,
-    particleStrokeAlpha: 0.08,
-    particleSizeJitter: 0.28,
-    particleColorJitter: 22,
-    centerFormAlpha: 0.11,
-    centerHaloRadius: 0.22,
-    centerCoreAlpha: 0.12,
-    centerCoreRadius: 0.036,
-    centerOcclusionRadius: 0.17,
-    centerOcclusionStrength: 0.82,
-    leftEntrySpread: 0.58,
-    coverageGrowthSeconds: 92,
-    coverageCueBoost: 0.18,
-    overlays: [],
     maxBursts: 6,
   },
   'cong-cloud-again-generative-default': {
@@ -1283,10 +1229,10 @@ export const VISUALIZER_TUNINGS = {
     beatSensitivity: 1.18,
     freezeChance: 0.045,
     compressionScale: 0.22,
-    blockLayerChance: 0.82,
-    blockOpacityScale: 0.82,
-    blockShapeMode: 'shards',
-    blockSectionMask: [1, 2, 3, 5],
+    blockLayerChance: 0,
+    blockOpacityScale: 0,
+    blockShapeMode: 'soft',
+    blockSectionMask: [],
     effectIntensity: 0.92,
     moshWaveSpeed: 0.78,
     moshWaveWidth: 0.16,
@@ -1656,19 +1602,6 @@ export const VISUALIZER_TUNINGS = {
     veilAlpha: 0.42,
     tensionMix: 0.42,
   },
-  'native-sidewind-drift-default': {
-    kernel: 'native-sidewind-drift',
-    moteCount: 300,
-    windBase: 26,
-    gustSpeed: 0.07,
-    gustAmp: 0.6,
-    windAngleDeg: 4,
-    horizonY: 0.62,
-    horizonAlpha: 0.085,
-    streakLength: 14,
-    moteAlpha: 0.16,
-    fillAlpha: 0.1,
-  },
   'native-gravity-current-default': {
     kernel: 'native-gravity-current',
     particleCount: 420,
@@ -1710,17 +1643,11 @@ export const VISUALIZER_TUNINGS = {
   },
   'three-artwork-flux-default': {
     kernel: 'three-artwork-flux',
-    memory: 0.84,
+    memory: 0.76,
     displacement: 0.78,
     reveal: 0.82,
     chromaticAberration: 0.82,
     vignette: 0.42,
-  },
-  'three-fresnel-core-default': {
-    kernel: 'three-fresnel-core',
-    coreRadius: 0.28,
-    rimWidth: 0.18,
-    glowRadius: 0.55,
   },
   'three-flat-material-default': {
     kernel: 'three-flat-material',
@@ -1734,7 +1661,7 @@ export const VISUALIZER_TUNINGS = {
     kernel: 'three-light-rays',
     rayDensity: 48,
     rayDecay: 0.93,
-    rayExposure: 1.4,
+    rayExposure: 2.2,
     moteScale: 2.8,
   },
   'three-sparse-veil-default': {
@@ -1743,6 +1670,16 @@ export const VISUALIZER_TUNINGS = {
     noiseScale: 1.6,
     scrollSpeed: 0.014,
     breathAmplitude: 0.6,
+  },
+  'three-fluid-advection-default': {
+    kernel: 'three-fluid-advection',
+    viscosity: 0.955,
+    baseCurlStrength: 0.004,
+    peakCurlStrength: 0.018,
+    noiseScale: 2.2,
+    driftSpeed: 0.032,
+    dissipation: 0.996,
+    injectRadius: 0.11,
   },
   'three-reaction-diffusion-default': {
     kernel: 'three-reaction-diffusion',
@@ -1821,7 +1758,7 @@ export function resolveCongGreenGalaxyTuning(tuning?: VisualizerTuningConfig): C
 export function resolveCongGenerativeParticlesTuning(tuning?: VisualizerTuningConfig): CongGenerativeParticlesTuning {
   return tuning?.kernel === 'cong-generative-particles'
     ? tuning
-    : VISUALIZER_TUNINGS['cong-landscape-og-current-default'];
+    : VISUALIZER_TUNINGS['cong-cloud-again-generative-default'];
 }
 
 export function resolveCongHorizonFieldTuning(tuning?: VisualizerTuningConfig): CongHorizonFieldTuning {
@@ -1878,12 +1815,6 @@ export function resolveNativeAuroraVeilTuning(tuning?: VisualizerTuningConfig): 
     : VISUALIZER_TUNINGS['native-aurora-veil-default'];
 }
 
-export function resolveNativeSidewindDriftTuning(tuning?: VisualizerTuningConfig): NativeSidewindDriftTuning {
-  return tuning?.kernel === 'native-sidewind-drift'
-    ? tuning
-    : VISUALIZER_TUNINGS['native-sidewind-drift-default'];
-}
-
 export function resolveNativeGravityCurrentTuning(tuning?: VisualizerTuningConfig): NativeGravityCurrentTuning {
   return tuning?.kernel === 'native-gravity-current'
     ? tuning
@@ -1914,12 +1845,6 @@ export function resolveThreeArtworkFluxTuning(tuning?: VisualizerTuningConfig): 
     : VISUALIZER_TUNINGS['three-artwork-flux-default'];
 }
 
-export function resolveThreeFresnelCoreTuning(tuning?: VisualizerTuningConfig): ThreeFresnelCoreTuning {
-  return tuning?.kernel === 'three-fresnel-core'
-    ? tuning
-    : VISUALIZER_TUNINGS['three-fresnel-core-default'];
-}
-
 export function resolveThreeFlatMaterialTuning(tuning?: VisualizerTuningConfig): ThreeFlatMaterialTuning {
   return tuning?.kernel === 'three-flat-material'
     ? tuning
@@ -1936,6 +1861,12 @@ export function resolveThreeSparseVeilTuning(tuning?: VisualizerTuningConfig): T
   return tuning?.kernel === 'three-sparse-veil'
     ? tuning
     : VISUALIZER_TUNINGS['three-sparse-veil-default'];
+}
+
+export function resolveThreeFluidAdvectionTuning(tuning?: VisualizerTuningConfig): ThreeFluidAdvectionTuning {
+  return tuning?.kernel === 'three-fluid-advection'
+    ? tuning
+    : VISUALIZER_TUNINGS['three-fluid-advection-default'];
 }
 
 export function resolveThreeReactionDiffusionTuning(tuning?: VisualizerTuningConfig): ThreeReactionDiffusionTuning {

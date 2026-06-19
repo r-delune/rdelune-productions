@@ -1350,6 +1350,23 @@ select:focus-visible {
   font-size: 10.5px;
   opacity: 0.76;
 }
+.explorer-mini-meta-line {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.38rem;
+}
+.explorer-mini-year {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.9;
+}
+.explorer-mini-meta-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .explorer-mini-progress {
   position: relative;
   display: flex;

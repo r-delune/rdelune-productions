@@ -63,7 +63,7 @@ const FRAGMENT_SHADER = /* glsl */ `
     illum /= max(1.0, uRayDensity * 0.5);
 
     float beat = beatPulse();
-    float brightness = uRayExposure * (0.28 + uLevel * 0.5 + uGlow * 0.5 + uSectionProgress * 0.18) * beat;
+    float brightness = uRayExposure * (0.52 + uLevel * 0.5 + uGlow * 0.5 + uSectionProgress * 0.22) * beat;
     brightness *= (1.0 + uFlash * 1.6);
 
     // Warm toward light source centre, cool at edges
@@ -98,7 +98,7 @@ const FRAGMENT_SHADER = /* glsl */ `
     // Soft gradient from light position
     vec2 aspect = vec2(uResolution.x / max(1.0, uResolution.y), 1.0);
     float dist = length((uv - uLightPos) * aspect);
-    float halo = exp(-dist * (1.8 - uSectionProgress * 0.6)) * (0.06 + uGlow * 0.12 + uLevel * 0.08);
+    float halo = exp(-dist * (1.4 - uSectionProgress * 0.5)) * (0.14 + uGlow * 0.16 + uLevel * 0.10);
 
     vec3 col = uColorBg;
     col += uColorMid * halo;

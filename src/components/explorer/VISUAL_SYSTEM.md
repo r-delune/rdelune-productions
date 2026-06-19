@@ -250,8 +250,8 @@ If a change cannot meet those rules, it should be treated as an experiment, not 
 Use names that explain intent:
 
 - Kernel: technical family, e.g. `cong-generative-particles`.
-- Tuning key: recipe-like preset, e.g. `cong-landscape-og-current-default`.
-- Recipe ID: public visual identity, e.g. `cong-landscape-og-current`.
+- Tuning key: recipe-like preset, e.g. `cong-cloud-again-generative-default`.
+- Recipe ID: public visual identity, e.g. `cong-cloud-again-generative`.
 - Candidate ID: source/archive reference, e.g. `landscapeparticlesflow`.
 
 Avoid names like `newstuff2`, `visual3`, or track-specific recipe IDs unless the visual is genuinely tied to a single reviewed moment.

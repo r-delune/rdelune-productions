@@ -102,7 +102,7 @@ Artwork/image-mangling recipes must be marked image-dependent through `isImageDe
 ## Anti-patterns
 
 **Banned shortcuts — these will fail the concept gate and the aesthetic rubric:**
-- **Fullscreen SDF sphere as the primary form** — `three-fresnel-core` already covers this. A new kernel that is "an orb / core / circle with glow" is a duplicate.
+- **Fullscreen SDF sphere as the primary form** — retired after review. A new kernel that is "an orb / core / circle with glow" fails the world/ecosystem test unless reframed as a deeper scene.
 - **Flat noise material with only palette colour as variation** — `three-flat-material` already covers grain/sediment texture. A new kernel that is "noise + palette colour on a quad" is a duplicate.
 - **Caustic-style domain-warp copied to a new palette** — `three-caustics` already covers refractive shimmer. Changing the colour does not make it a different visual.
 - **Uniform particle grid** — evenly spaced points on a plane, even animated, reads as a UI diagram. Not atmospheric.

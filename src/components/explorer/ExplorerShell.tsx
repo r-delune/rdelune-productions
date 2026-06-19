@@ -53,7 +53,6 @@ function ExplorerCanvasFallback() {
       aria-hidden="true"
       style={{
         background: 'radial-gradient(circle at 24% 18%, rgba(118, 142, 180, 0.22) 0%, rgba(118, 142, 180, 0) 38%), radial-gradient(circle at 74% 78%, rgba(216, 172, 112, 0.14) 0%, rgba(216, 172, 112, 0) 44%), linear-gradient(180deg, rgb(9, 11, 15) 0%, rgb(15, 18, 24) 52%, rgb(4, 5, 8) 100%)',
-        filter: 'grayscale(1) saturate(0)',
       }}
     />
   );
@@ -143,16 +142,34 @@ function debugLabEnabled(): boolean {
   if (typeof window === 'undefined') return false;
   if (process.env.NODE_ENV === 'production') return false;
   const params = new URLSearchParams(window.location.search);
-  return params.get('debug') === '1' || params.get('lab') === '1' || !!params.get('recipe');
+  return params.get('debug') === '1' || params.get('lab') === '1';
+}
+
+function visualReviewEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('visualReview') === '1';
+}
+
+function visualReviewAudioEnabled(): boolean {
+  if (typeof window === 'undefined' || !visualReviewEnabled()) return false;
+  return new URLSearchParams(window.location.search).get('reviewAudio') === '1';
 }
 
 function readReviewRecipeParam(): string | undefined {
   if (typeof window === 'undefined') return undefined;
-  if (process.env.NODE_ENV === 'production') return undefined;
+  if (!debugLabEnabled() && !visualReviewEnabled()) return undefined;
 
   const recipeId = new URLSearchParams(window.location.search).get('recipe')?.trim();
   if (!recipeId || recipeIsDisabled(recipeId)) return undefined;
   return getExplorerRecipe(recipeId).id === recipeId ? recipeId : undefined;
+}
+
+function readReviewNumberParam(name: string): number | undefined {
+  if (typeof window === 'undefined' || !visualReviewEnabled()) return undefined;
+  const value = new URLSearchParams(window.location.search).get(name);
+  if (!value) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function getDailyRotationSeed(date = new Date()): string {
@@ -203,17 +220,22 @@ export default function ExplorerShell({ initialAlbums }: Props) {
   const [loading, setLoading] = useState(seedAlbums.length === 0);
   const [error, setError] = useState(false);
   const [visualPlaybackActive, setVisualPlaybackActive] = useState(false);
+  const [visualPlaybackStarted, setVisualPlaybackStarted] = useState(false);
   const [trackProgress, setTrackProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [playerCollapsed, setPlayerCollapsed] = useState(true);
   const [randomPlaybackRequest, setRandomPlaybackRequest] = useState<{ id: number; albumIndex: number; trackIndex: number } | null>(null);
   const [randomMode, setRandomMode] = useState(false);
   const [showMoodLab, setShowMoodLab] = useState(false);
+  const [visualReviewMode, setVisualReviewMode] = useState(false);
+  const [visualReviewAudioMode, setVisualReviewAudioMode] = useState(false);
   const [showCurationHUD, setShowCurationHUD] = useState(process.env.NODE_ENV !== 'production');
   const [sectionMoodOverrides, setSectionMoodOverrides] = useState<Record<string, SectionMoodOverride>>({});
   const [visualSettings, setVisualSettings] = useState<ProductionsVisualSettings>(DEFAULT_PRODUCTIONS_VISUAL_SETTINGS);
   const [automaticRecipeId, setAutomaticRecipeId] = useState(() => pickAutomaticSketch(DEFAULT_AUTOMATIC_SKETCH_DECK));
   const [requestedReviewRecipeId, setRequestedReviewRecipeId] = useState<string | undefined>(undefined);
+  const [reviewTime, setReviewTime] = useState<number | undefined>(undefined);
+  const [reviewSectionIndex, setReviewSectionIndex] = useState<number | undefined>(undefined);
   const [initialSelectionReady, setInitialSelectionReady] = useState(seedAlbums.length === 0);
   const audioSignalRef = useRef(createAudioSignal());
   const hasInitializedAlbumRef = useRef(false);
@@ -225,10 +247,16 @@ export default function ExplorerShell({ initialAlbums }: Props) {
 
   useEffect(() => {
     const enabled = debugLabEnabled();
+    const reviewEnabled = visualReviewEnabled();
+    const reviewAudioEnabled = visualReviewAudioEnabled();
     const requestedRecipeId = readReviewRecipeParam();
     const savedVisualSettings = readProductionsVisualSettings();
     setShowMoodLab(enabled);
+    setVisualReviewMode(reviewEnabled);
+    setVisualReviewAudioMode(reviewAudioEnabled);
     setRequestedReviewRecipeId(requestedRecipeId);
+    setReviewTime(readReviewNumberParam('reviewTime'));
+    setReviewSectionIndex(readReviewNumberParam('reviewSection'));
     setRandomMode(readSavedRandomMode());
     setVisualSettings(savedVisualSettings);
     setAutomaticRecipeId(pickAutomaticSketch(savedVisualSettings.automaticSketchDeck));
@@ -392,6 +420,11 @@ export default function ExplorerShell({ initialAlbums }: Props) {
     }
   }, []);
 
+  const onPlaybackActiveChange = useCallback((active: boolean) => {
+    setVisualPlaybackActive(active);
+    if (active) setVisualPlaybackStarted(true);
+  }, []);
+
   const onProgressChange = useCallback((progress: number) => {
     setTrackProgress(progress);
   }, []);
@@ -443,6 +476,7 @@ export default function ExplorerShell({ initialAlbums }: Props) {
     baseColor,
     track,
     trackTitle,
+    songSectionTimes,
     sectionTimes,
     beatGrid,
     visualCurrentTime,
@@ -464,9 +498,11 @@ export default function ExplorerShell({ initialAlbums }: Props) {
     effectiveVisualTrackIndex: trackIndex,
     currentTime,
     trackProgress,
+    reviewTime,
+    reviewSectionIndex,
     visualSettings,
     automaticRecipeId,
-    showMoodLab,
+    showMoodLab: showMoodLab || visualReviewMode,
     sectionMoodOverrides,
     setSectionMoodOverrides,
     rotationSeed,
@@ -474,7 +510,7 @@ export default function ExplorerShell({ initialAlbums }: Props) {
   const { cardBg, cardBorder } = currentRecipe;
 
   useEffect(() => {
-    if (!showMoodLab || !requestedReviewRecipeId) return;
+    if ((!showMoodLab && !visualReviewMode) || !requestedReviewRecipeId) return;
     setSectionMoodOverrides((current) => {
       if (current[moodTrackOverrideKey]?.recipeId === requestedReviewRecipeId) return current;
       return {
@@ -482,12 +518,15 @@ export default function ExplorerShell({ initialAlbums }: Props) {
         [moodTrackOverrideKey]: { recipeId: requestedReviewRecipeId },
       };
     });
-  }, [moodTrackOverrideKey, requestedReviewRecipeId, showMoodLab]);
+  }, [moodTrackOverrideKey, requestedReviewRecipeId, showMoodLab, visualReviewMode]);
 
   return (
     <div
       data-productions-theme="dark"
       data-current-recipe-id={reviewRecipeId ?? currentRecipe.id}
+      data-visual-review={visualReviewMode ? '1' : undefined}
+      data-visual-review-audio={visualReviewAudioMode ? '1' : undefined}
+      data-review-section-index={reviewSectionIndex}
       data-render-quality-source="getRenderQualityTelemetry"
       className="contents"
     >
@@ -499,6 +538,7 @@ export default function ExplorerShell({ initialAlbums }: Props) {
         baseColor={baseColor}
         artworkUrl={album?.artworkUrl}
         sectionTimes={sectionTimes}
+        songSectionTimes={songSectionTimes}
         sectionTimesSource={track?.section_times_source ?? null}
         beatGrid={beatGrid}
         trackDuration={track?.duration ?? undefined}
@@ -506,10 +546,11 @@ export default function ExplorerShell({ initialAlbums }: Props) {
         panelCollapsed={playerCollapsed}
         visualConfig={moodLabVisualConfig}
         audioSignalRef={audioSignalRef}
-        reviewMotion={showMoodLab}
+        reviewMotion={showMoodLab || visualReviewMode}
         showSketchLabel={showDevSketchChip}
         initialSelectionReady={initialSelectionReady}
         colorOnlyWhilePlaying={visualSettings.colorOnlyWhilePlaying}
+        hasPlaybackStarted={visualPlaybackStarted}
         rotationSeed={rotationSeed}
       />
       <ShowcasePlayer
@@ -518,7 +559,7 @@ export default function ExplorerShell({ initialAlbums }: Props) {
         selectedTrackIndex={trackIndex}
         onAlbumChange={onAlbumChange}
         onPlayingChange={onPlayingChange}
-        onPlaybackActiveChange={setVisualPlaybackActive}
+        onPlaybackActiveChange={onPlaybackActiveChange}
         onProgressChange={onProgressChange}
         onCurrentTimeChange={onCurrentTimeChange}
         onTrackIndexChange={onTrackIndexChange}
@@ -535,6 +576,7 @@ export default function ExplorerShell({ initialAlbums }: Props) {
         onPanelCollapsedChange={setPlayerCollapsed}
         audioSignalRef={audioSignalRef}
         initialSelectionReady={initialSelectionReady}
+        disableAudio={visualReviewMode && !visualReviewAudioMode}
       />
       {showDevSketchChip ? (
         <div
@@ -554,6 +596,8 @@ export default function ExplorerShell({ initialAlbums }: Props) {
         <CurationHUD
           visualPlan={visualPlan}
           sectionTimes={sectionTimes}
+          songSectionTimes={songSectionTimes}
+          sectionTimesSource={track?.section_times_source ?? null}
           beatGrid={beatGrid}
           currentTime={visualCurrentTime}
           sectionIndex={sectionIndex}

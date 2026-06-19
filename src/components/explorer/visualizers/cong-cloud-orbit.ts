@@ -290,7 +290,7 @@ export function createCongCloudOrbit(): Visualizer {
         ], particle.seed), particle.seed), particle.seed, particle.depth);
         const [red, green, blue] = particleColor;
         const releaseFade = phase >= 4 ? 1 - clamp01(phaseAge / 2) * escape : 1;
-        const alpha = (0.012 + particle.depth * 0.04 + growth * 0.025 + curParams.density * 0.08 + curParams.shimmer * 0.03) * exclusion.alpha * clamp01(1 + eventDensity * 0.62) * (phase <= 1 ? 0.54 : 1) * releaseFade;
+        const alpha = (0.026 + particle.depth * 0.04 + growth * 0.025 + curParams.density * 0.08 + curParams.shimmer * 0.03) * exclusion.alpha * clamp01(1 + eventDensity * 0.62) * (phase <= 1 ? 0.54 : 1) * releaseFade;
 
         ctx.fillStyle = `rgba(${red},${green},${blue},${alpha})`;
         ctx.beginPath();

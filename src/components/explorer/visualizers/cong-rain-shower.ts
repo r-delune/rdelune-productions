@@ -93,7 +93,7 @@ export function createCongRainShower(): Visualizer {
       drops.push({
         baseX: Math.random() * w,
         y: Math.random() * h,
-        speed: 70 + depth * 240,
+        speed: 48 + depth * 150,
         length: 8 + depth * 26,
         swing: 4 + depth * 26,
         thickness: 0.4 + depth * 1.6,
@@ -199,7 +199,7 @@ export function createCongRainShower(): Visualizer {
       for (let index = 0; index < drops.length; index += 1) {
         const drop = drops[index];
         const localMotion = mix(1, drop.speedJitter + Math.sin(time * (0.18 + drop.depth * 0.24) + drop.phase) * 0.18, independence);
-        const stormScale = phase >= 3 ? 2 : 1;
+        const stormScale = phase >= 3 ? 1.28 : 1;
         if (phase >= 3) {
           drop.baseX += (15 + audio.energy * 16) * dt;
           if (drop.baseX > w + 30) drop.baseX = -30;
@@ -359,7 +359,7 @@ export function createCongRainShower(): Visualizer {
           for (const drop of drops) { if (Math.random() < 0.76) drop.reverse = true; }
           lengthLiftTarget = Math.max(lengthLiftTarget, 2.0 + intensity * 0.8);
           thicknessLiftTarget = Math.max(thicknessLiftTarget, 2.8 + intensity * 0.8);
-          speedLiftTarget = Math.max(speedLiftTarget, 1.4 + intensity * 0.6);
+          speedLiftTarget = Math.max(speedLiftTarget, 0.72 + intensity * 0.32);
           orbPresenceTarget = 1;
           orbGrowthTarget = 1;
         }

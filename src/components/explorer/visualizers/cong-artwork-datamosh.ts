@@ -1049,6 +1049,8 @@ export function createCongArtworkDatamosh(): Visualizer {
     const sectionMask = config.blockSectionMask;
     if (sectionMask?.length && !sectionMask.includes(sectionNumber)) return;
     const layerChance = config.blockLayerChance ?? 1;
+    const opacityScale = config.blockOpacityScale ?? 1;
+    if (layerChance <= 0 || opacityScale <= 0) return;
     const sectionGate = seededUnit(sectionSeed * 0.001 + sectionNumber * 19.7);
     const fractureLift = Math.max(fracturePresence, layerTargets.fracture, fractureBaseline);
     if (sectionGate > layerChance && fractureLift < 0.24 && eventBurst < 0.42) return;
@@ -1068,7 +1070,7 @@ export function createCongArtworkDatamosh(): Visualizer {
 
     feedbackCtx.save();
     feedbackCtx.globalCompositeOperation = imageFailed ? 'lighter' : 'screen';
-    feedbackCtx.globalAlpha = (config.blockOpacityScale ?? 1) * (0.035 + intensity * 0.12 + audio.mids * 0.1 + eventBurst * 0.14 + profile.blocks * 0.035 + fractureLift * 0.08);
+    feedbackCtx.globalAlpha = opacityScale * (0.035 + intensity * 0.12 + audio.mids * 0.1 + eventBurst * 0.14 + profile.blocks * 0.035 + fractureLift * 0.08);
     for (let i = 0; i < activeCount; i += 1) {
       const block = blockSeeds[(i + Math.floor(time * 7 * bpmScale + sectionEnergy * 17)) % blockSeeds.length];
       if (shapeMode === 'shards' && block.shape > 0.46) continue;

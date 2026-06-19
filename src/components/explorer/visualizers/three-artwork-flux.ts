@@ -19,6 +19,7 @@ import {
   createSectionProgress,
   createStandardUniforms,
   loadArtworkTexture,
+  GRAIN_GLSL,
   NOISE_GLSL,
   STD_UNIFORM_GLSL,
   type PingPongTargets,
@@ -69,7 +70,8 @@ const FEEDBACK_SHADER = /* glsl */ `
   void main(){
     vec2 uv = vUv;
     float t = uTime * (0.045 + uDrift * 0.055);
-    float structural = (uLevel * 0.35 + uSectionProgress * 0.45 + uFlux * 0.55) * uSectionAmp;
+    // Keep a drift floor (0.15) so the scene never fully locks static even at silence/section 0
+    float structural = 0.15 + (uLevel * 0.30 + uSectionProgress * 0.35 + uFlux * 0.50) * max(0.25, uSectionAmp);
     // Coherent curl: two scalar potentials rotated together break x/y independence
     // and eliminate the grid-aligned plaid artifact of separable noise.
     float pot0 = snoise(vec3(uv * 2.0, t));
@@ -105,14 +107,15 @@ const DISPLAY_SHADER = /* glsl */ `
   precision highp float;
   varying vec2 vUv;
   ${STD_UNIFORM_GLSL}
+  ${GRAIN_GLSL}
 
   uniform sampler2D uFrame;
-  uniform float uVignette;
 
   void main(){
     vec3 col = texture2D(uFrame, vUv).rgb;
-    float d = distance(vUv, vec2(0.5));
-    col *= mix(1.0, smoothstep(0.82, 0.22, d), uVignette);
+    // Cinematic shadow lift — ensures dark album art is never pure black
+    col = col * 0.70 + 0.15;
+    col = applyGrainVignette(col, vUv, 0.028, 0.36);
     col = mix(uColorBg, col, exclusionMask());
     gl_FragColor = vec4(col, 1.0);
   }
@@ -187,7 +190,6 @@ function makeArtworkFluxScene(): ThreeScene {
       feedbackUniforms = createStandardUniforms(three, palette, args.w, args.h);
 
       displayUniforms.uFrame = { value: pingPong.read.texture };
-      displayUniforms.uVignette = { value: tuning.vignette };
       feedbackUniforms.uFeedback = { value: pingPong.read.texture };
       feedbackUniforms.uArtwork = { value: fallbackTexture };
       feedbackUniforms.uHasArtwork = { value: 0 };
