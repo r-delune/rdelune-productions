@@ -51,6 +51,10 @@ const VERTEX_SHADER = /* glsl */ `
   uniform float uSectionProgress;
   uniform float uBeatPhase;
   uniform float uDensitySurge;
+  // Section-based frequency: low early (broad sweeping), high at peak (tight eddies)
+  uniform float uFreqMod;
+  // Early-section directional bias (fades out as section deepens)
+  uniform vec2  uFlowBias;
   uniform vec3  uColorA;
   uniform vec3  uColorWarm;
   uniform vec4  uExclusion;     // left, right, top, bottom (px)
@@ -84,11 +88,14 @@ const VERTEX_SHADER = /* glsl */ `
     // lurching one step-length at each threshold.
     vec3 p = position;
     float zSlice = aDepth * 2.0 + uTime * 0.03;
+    float noiseScaleMod = uNoiseScale * uFreqMod;
     for (int i = 0; i < STEPS; i++) {
       float fi = float(i) / float(STEPS);
       float w = clamp((life - fi) * float(STEPS), 0.0, 1.0);
       if (w <= 0.0) break;
-      vec3 v = curlDir(vec3(p.xy * uNoiseScale, zSlice));
+      vec3 v = curlDir(vec3(p.xy * noiseScaleMod, zSlice));
+      // Add directional bias in early sections for clear flow character
+      v.xy = normalize(v.xy + uFlowBias * (1.0 - uSectionProgress));
       p.xy += v.xy * travel * w;
     }
 
@@ -101,7 +108,8 @@ const VERTEX_SHADER = /* glsl */ `
     // Subtle authored beat pulse only — uBeatPhase < 0 means no BPM metadata.
     float beat = uBeatPhase >= 0.0 ? (1.0 + 0.18 * pow(1.0 - uBeatPhase, 3.0)) : 1.0;
 
-    float depthSize = 0.55 + aDepth * 0.9;
+    // Near particles (aDepth > 0.5) are larger and brighter for depth separation
+    float depthSize = 0.35 + aDepth * 1.3;
     // Gentle per-point shimmer from the eased shimmer param (no raw highs).
     float sparkle = 1.0 + uShimmer * aRand * 0.8;
     float size = uPointSize * uPixelRatio * depthSize * beat * sparkle
@@ -122,12 +130,12 @@ const VERTEX_SHADER = /* glsl */ `
       gl_PointSize *= mix(1.0, 0.4, inside);
     }
 
-    // Warm/cool mix from per-point randomness; sections warm the field over time.
-    float warmth = clamp(aRand * 0.6 + uSectionProgress * 0.25, 0.0, 1.0);
+    // Near particles brighter; far particles cooler for depth/parallax feel
+    float warmth = clamp(aRand * 0.5 + uSectionProgress * 0.3 + aDepth * 0.3, 0.0, 1.0);
     vec3 col = mix(uColorA, uColorWarm, warmth);
-    float bright = (0.45 + uGlow * 0.7 + uLevel * 0.3 + aDepth * 0.25) * beat;
+    float bright = (0.3 + uGlow * 0.7 + uLevel * 0.3 + aDepth * 0.5) * beat;
     vColor = col * bright;
-    vAlpha = lifeEnv * exMask * (0.35 + uGlow * 0.5 + aDepth * 0.4);
+    vAlpha = lifeEnv * exMask * (0.22 + uGlow * 0.45 + aDepth * 0.55);
   }
 `;
 
@@ -239,6 +247,8 @@ function makeCurlFlowScene(): ThreeScene {
         uExclusion: { value: new T.Vector4(0, 0, 0, 0) },
         uExclusionActive: { value: 0 },
         uAdditiveAlpha: { value: tuning.additiveAlpha },
+        uFreqMod: { value: 1 },
+        uFlowBias: { value: new T.Vector2(0.6, 0.2) },
       };
 
       const steps = Math.max(3, Math.min(16, Math.round(tuning.integrationSteps)));
@@ -284,7 +294,12 @@ function makeCurlFlowScene(): ThreeScene {
 
       uniforms.uTime.value = time;
       uniforms.uAmp.value = 0.6 + params.turbulence * 1.1;
-      uniforms.uFlowSpeed.value = tuning.flowSpeed * (0.5 + params.drift * 1.2);
+      uniforms.uFlowSpeed.value = tuning.flowSpeed * (0.3 + section.value * 0.6 + params.drift * 0.8);
+      // Noise freq: low (0.6) at section 0 for broad sweeping → high (1.5) at peak for tight eddies
+      uniforms.uFreqMod.value = 0.6 + section.value * 0.9;
+      // Directional bias fades out as section deepens (structure emerges from chaos)
+      const biasStrength = Math.max(0, 0.7 - section.value * 1.2);
+      (uniforms.uFlowBias.value as import('three').Vector2).set(biasStrength * 0.8, biasStrength * 0.25);
       uniforms.uGlow.value = params.glow;
       uniforms.uShimmer.value = params.shimmer;
       uniforms.uImpulse.value = params.impulse;
@@ -311,8 +326,10 @@ function makeCurlFlowScene(): ThreeScene {
 
       // Quality / density is the per-frame draw lever: scale the drawn point
       // count off the frame-local snapshot, never persistent state.
+      // Entrance arc: section 1 is sparse (~15% of max), accumulates to full by section 2.
       const quality = getQualityScale();
-      const drawFraction = clamp01(0.25 + params.density * 0.75 + densitySurge * 0.25) * quality;
+      const entranceArc = Math.min(1, section.value / 0.22);
+      const drawFraction = clamp01(entranceArc * (0.15 + params.density * 0.85) + densitySurge * 0.25) * quality;
       field.setDrawFraction(drawFraction, 1000);
 
       const ex = uniforms.uExclusion.value as import('three').Vector4;

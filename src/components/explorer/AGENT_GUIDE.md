@@ -31,6 +31,23 @@ This language is canonical here and in `THREE_GENERATION_PROMPT.md`. If a sketch
 diagram (concentric rings, target pulses, grids without jitter), or a denser duplicate of an existing family,
 it's off-aesthetic — revise.
 
+### The World/Ecosystem Test (required — no exceptions)
+
+Every visual must read as a *place* or a *living system*, not an abstract pattern. Ask: "If a viewer saw this for 5 seconds with no context, would they feel they're observing a world — a landscape, a weather event, a body of water, a creature colony, a deep-space environment?" If yes, proceed. If the honest answer is "a glowing circle," "a noise texture," "a grid," or "a kaleidoscope," the concept fails — reframe or discard.
+
+This is not about being literal. `three-caustics` doesn't show real water, but it reads spatially like light through a water surface. `three-curl-flow` reads like a murmuration or school of fish. `three-volumetric-fog` puts you inside a cloud. The spatial metaphor does not need to be named; the *presence* must be felt. Kernels like `native-lissajous` (mathematical curves), `cong-chromatic-ring` (concentric ring pulse), and `native-kaleido-fold` (kaleidoscope) fail this test and are candidates for retirement.
+
+### The Particle Entrance Arc (required for all particle/field visuals)
+
+Particles and scene elements must *arrive*, not just *exist*. The canonical arc:
+
+- **Section 1 (intro/establish):** sparse — particles enter from edges, below, or zero; the scene feels like it's waking up.
+- **Sections 2–3 (build):** density accumulates; new elements join; the world fills in.
+- **Section 4 (peak):** maximum presence and motion; the scene feels fully inhabited.
+- **Section 5 (outro/resolve):** dispersal, stillness, or residue — particles leave, slow, or thin out.
+
+A visual running at the same density from frame 0 to the end fails this. The viewer must *feel* the world growing. Uniform-density kernels (`three-curl-flow` at 100k points from frame 0, `three-fresnel-core` at full radius from frame 0) are flagged for this fix in the Improvement Candidates.
+
 ---
 
 ## 2. Sanctioned toolkit (what you may render with)

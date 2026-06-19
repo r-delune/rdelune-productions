@@ -180,41 +180,6 @@ export interface CongGreenGalaxyTuning {
   maxBursts: number;
 }
 
-export interface CongChordStormTuning {
-  kernel: 'cong-chord-storm';
-  particleCount: number;
-  centerX: number;
-  centerY: number;
-  radiusScale: number;
-  speed: number;
-  trailAlpha: number;
-  chordAlpha: number;
-  maxBursts: number;
-}
-
-export interface CongTopBottomStormTuning {
-  kernel: 'cong-top-bottom-storm';
-  particleCount: number;
-  speed: number;
-  sway: number;
-  trailAlpha: number;
-  accentAlpha: number;
-  maxBursts: number;
-}
-
-export interface CongMistFieldTuning {
-  kernel: 'cong-mist-field';
-  layerCount: number;
-  baseAlpha: number;
-  layerSpacing: number;
-  noiseScale: number;
-  moteCount: number;
-  moteAlpha: number;
-  ridgeCount: number;
-  ridgeAlpha: number;
-  driftStrength: number;
-}
-
 export interface CongHorizonFieldTuning {
   kernel: 'cong-horizon-field';
   particleCount: number;
@@ -242,31 +207,11 @@ export interface CongWaterlineShimmerTuning {
   burstSize: number;
 }
 
-export interface CongGrainErosionTuning {
-  kernel: 'cong-grain-erosion';
-  gridSize: number;
-  baseAlpha: number;
-}
-
-export interface CongWanderingLinesTuning {
-  kernel: 'cong-wandering-lines';
-  lineCount: number;
-  pointsPerLine: number;
-  baseAlpha: number;
-}
-
 export interface CongBrokenGridTuning {
   kernel: 'cong-broken-grid';
   cellSize: number;
   baseAlpha: number;
   breakChance: number;
-}
-
-export interface CongSparseConstellationTuning {
-  kernel: 'cong-sparse-constellation';
-  pairCount: number;
-  baseAlpha: number;
-  connectionChance: number;
 }
 
 export interface CongEmberGeologyTuning {
@@ -425,6 +370,7 @@ export interface CongGenerativeParticlesTuning {
   initialParticleAlpha?: number;
   releaseDurationMs?: number;
   releaseMode?: 'all-at-once' | 'one-by-one';
+  lockRendererCycle?: boolean;
   centerFormAlpha?: number;
   centerHaloRadius?: number;
   centerCoreAlpha?: number;
@@ -469,23 +415,6 @@ export interface NativeAttractorDriftTuning {
   heightGrowth: number;
   growthSpeed: number;
   onsetGrowth: number;
-}
-
-export interface NativeNightfallRidgesTuning {
-  kernel: 'native-nightfall-ridges';
-  ridgeCountBase: number;
-  ridgeCountMax: number;
-  sampleStep: number;
-  ridgeAmp: number;
-  parallaxSpread: number;
-  fogAlpha: number;
-  rimAlpha: number;
-  glintDensity: number;
-  fillAlpha: number;
-  distantLayerCount: number;
-  distantLandscapeAlpha: number;
-  shootingStarCount: number;
-  shootingStarAlpha: number;
 }
 
 export interface NativeAuroraVeilTuning {
@@ -570,7 +499,7 @@ export interface ThreeFlatMaterialTuning {
   grainScale: number;   // fine sediment/material frequency
   cellScale: number;    // larger eroded-cell frequency
   erosion: number;      // crack/edge contrast
-  veinGlow: number;     // luminous mineral gain
+  reliefGain: number;   // restrained edge/relief lift
 }
 
 export interface ThreeArtworkFluxTuning {
@@ -580,6 +509,22 @@ export interface ThreeArtworkFluxTuning {
   reveal: number;               // artwork-vs-procedural material mix
   chromaticAberration: number;  // horizontal channel split amount
   vignette: number;             // display pass edge darkening
+}
+
+export interface ThreeLightRaysTuning {
+  kernel: 'three-light-rays';
+  rayDensity: number;    // number of ray-march samples (quality lever)
+  rayDecay: number;      // per-step brightness decay (0.9=soft, 0.96=long)
+  rayExposure: number;   // final brightness multiplier
+  moteScale: number;     // spatial frequency of dust mote noise field
+}
+
+export interface ThreeSparseVeilTuning {
+  kernel: 'three-sparse-veil';
+  maxLayers: number;       // fbm layer ceiling (runtime uLayers scales)
+  noiseScale: number;      // spatial frequency of the mist volume
+  scrollSpeed: number;     // base drift speed (scaled near-zero in early sections)
+  breathAmplitude: number; // slow ambient breathing amplitude
 }
 
 export type VisualizerTuningConfig =
@@ -592,18 +537,12 @@ export type VisualizerTuningConfig =
   | CongParticleCurrentTuning
   | CongLateralCurrentTuning
   | CongGreenGalaxyTuning
-  | CongChordStormTuning
-  | CongTopBottomStormTuning
   | CongGenerativeParticlesTuning
-  | CongMistFieldTuning
   | CongHorizonFieldTuning
   | CongWaterlineShimmerTuning
-  | CongGrainErosionTuning
   | CongLateralCascadeTuning
   | CongVerticalLandscapeStreamTuning
-  | CongWanderingLinesTuning
   | CongBrokenGridTuning
-  | CongSparseConstellationTuning
   | CongEmberGeologyTuning
   | CongArtworkDatamoshTuning
   | CongArtworkParticleMangleTuning
@@ -611,7 +550,6 @@ export type VisualizerTuningConfig =
   | NativeKaleidoFoldTuning
   | NativeReactionVeilTuning
   | NativeAttractorDriftTuning
-  | NativeNightfallRidgesTuning
   | NativeAuroraVeilTuning
   | NativeSidewindDriftTuning
   | NativeGravityCurrentTuning
@@ -620,7 +558,9 @@ export type VisualizerTuningConfig =
   | ThreeCausticsTuning
   | ThreeArtworkFluxTuning
   | ThreeFresnelCoreTuning
-  | ThreeFlatMaterialTuning;
+  | ThreeFlatMaterialTuning
+  | ThreeLightRaysTuning
+  | ThreeSparseVeilTuning;
 
 export const VISUALIZER_TUNINGS = {
   'cong-cloud-orbit-default': {
@@ -671,9 +611,9 @@ export const VISUALIZER_TUNINGS = {
   },
   'cong-contour-lines-default': {
     kernel: 'cong-contour-lines',
-    bandCount: 28,
-    xStep: 24,
-    fillAlpha: 0.05,
+    bandCount: 32,
+    xStep: 20,
+    fillAlpha: 0.058,
     accentGlowThreshold: 0.25,
     accentTransientThreshold: 0.08,
   },
@@ -785,26 +725,6 @@ export const VISUALIZER_TUNINGS = {
     trailAlpha: 0.04,
     rayAlpha: 0.055,
     maxBursts: 6,
-  },
-  'cong-chord-storm-default': {
-    kernel: 'cong-chord-storm',
-    particleCount: 520,
-    centerX: 0.37,
-    centerY: 0.48,
-    radiusScale: 0.76,
-    speed: 0.82,
-    trailAlpha: 0.036,
-    chordAlpha: 0.1,
-    maxBursts: 7,
-  },
-  'cong-top-bottom-storm-default': {
-    kernel: 'cong-top-bottom-storm',
-    particleCount: 920,
-    speed: 0.82,
-    sway: 34,
-    trailAlpha: 0.055,
-    accentAlpha: 0.075,
-    maxBursts: 7,
   },
   'cong-landscape-og-current-default': {
     kernel: 'cong-generative-particles',
@@ -997,71 +917,6 @@ export const VISUALIZER_TUNINGS = {
     overlays: ['grid-rays'],
     maxBursts: 6,
   },
-  'cong-chord-storm-generative': {
-    kernel: 'cong-generative-particles',
-    mode: 'chord-storm',
-    particleCount: 700,
-    seed: 4517,
-    noiseOctaves: 5,
-    noiseFalloff: 0.54,
-    fieldScale: 0.005,
-    fieldStrength: 0.94,
-    speed: 58,
-    trailAlpha: 0.046,
-    blendMode: 'lighter',
-    emitter: 'center-burst',
-    field: 'curl-noise',
-    renderer: 'chords',
-    feedbackBlur: 0.2,
-    particleAlpha: 0.64,
-    pointSize: 1.35,
-    streakLength: 14,
-    centerX: 0.38,
-    centerY: 0.5,
-    laneSeparation: 0.62,
-    overlayAlpha: 0.12,
-    lineworkAlpha: 1,
-    particleStrokeAlpha: 0.075,
-    particleSizeJitter: 0.42,
-    particleColorJitter: 32,
-    overlays: ['random-chords'],
-    maxBursts: 8,
-  },
-  'cong-top-bottom-storm-generative': {
-    kernel: 'cong-generative-particles',
-    mode: 'storm',
-    particleCount: 1040,
-    seed: 5521,
-    noiseOctaves: 4,
-    noiseFalloff: 0.5,
-    fieldScale: 0.0046,
-    fieldStrength: 0.78,
-    speed: 74,
-    trailAlpha: 0.06,
-    blendMode: 'lighter',
-    emitter: 'top-bottom',
-    field: 'vertical-sway',
-    renderer: 'mirrored-points',
-    feedbackBlur: 0,
-    particleAlpha: 0.58,
-    pointSize: 1.28,
-    streakLength: 10,
-    centerX: 0.34,
-    centerY: 0.5,
-    laneSeparation: 0.64,
-    overlayAlpha: 0.08,
-    lineworkAlpha: 0,
-    particleStrokeAlpha: 0,
-    particleSizeJitter: 0.3,
-    particleColorJitter: 18,
-    releaseOnCue: false,
-    initialParticleAlpha: 1,
-    releaseDurationMs: 3600,
-    releaseMode: 'one-by-one',
-    centerFormAlpha: 0.28,
-    overlays: [],
-    maxBursts: 7,
-  },
   'cong-top-bottom-storm-section-template': {
     kernel: 'cong-generative-particles',
     mode: 'storm',
@@ -1093,24 +948,13 @@ export const VISUALIZER_TUNINGS = {
     initialParticleAlpha: 0.22,
     releaseDurationMs: 5200,
     releaseMode: 'one-by-one',
-    centerFormAlpha: 0.18,
-    centerHaloRadius: 0.19,
-    centerCoreAlpha: 0.13,
+    lockRendererCycle: true,
+    centerFormAlpha: 0.12,
+    centerHaloRadius: 0.2,
+    centerCoreAlpha: 0,
     centerCoreRadius: 0.034,
     overlays: [],
     maxBursts: 7,
-  },
-  'cong-mist-field-default': {
-    kernel: 'cong-mist-field',
-    layerCount: 12,
-    baseAlpha: 0.072,
-    layerSpacing: 0.12,
-    noiseScale: 0.0018,
-    moteCount: 240,
-    moteAlpha: 0.11,
-    ridgeCount: 5,
-    ridgeAlpha: 0.18,
-    driftStrength: 18,
   },
   'cong-horizon-field-default': {
     kernel: 'cong-horizon-field',
@@ -1137,28 +981,11 @@ export const VISUALIZER_TUNINGS = {
     particleSpeed: 46,
     burstSize: 34,
   },
-  'cong-grain-erosion-default': {
-    kernel: 'cong-grain-erosion',
-    gridSize: 16,
-    baseAlpha: 0.068,
-  },
-  'cong-wandering-lines-default': {
-    kernel: 'cong-wandering-lines',
-    lineCount: 28,
-    pointsPerLine: 40,
-    baseAlpha: 0.052,
-  },
   'cong-broken-grid-default': {
     kernel: 'cong-broken-grid',
     cellSize: 38,
     baseAlpha: 0.046,
     breakChance: 0.26,
-  },
-  'cong-sparse-constellation-default': {
-    kernel: 'cong-sparse-constellation',
-    pairCount: 48,
-    baseAlpha: 0.052,
-    connectionChance: 0.66,
   },
   'cong-ember-geology-default': {
     kernel: 'cong-ember-geology',
@@ -1891,22 +1718,6 @@ export const VISUALIZER_TUNINGS = {
     growthSpeed: 2.1,
     onsetGrowth: 0.26,
   },
-  'native-nightfall-ridges-default': {
-    kernel: 'native-nightfall-ridges',
-    ridgeCountBase: 5,
-    ridgeCountMax: 8,
-    sampleStep: 6,
-    ridgeAmp: 0.16,
-    parallaxSpread: 14,
-    fogAlpha: 0.06,
-    rimAlpha: 0.085,
-    glintDensity: 14,
-    fillAlpha: 0.085,
-    distantLayerCount: 3,
-    distantLandscapeAlpha: 0.11,
-    shootingStarCount: 5,
-    shootingStarAlpha: 0.42,
-  },
   'native-aurora-veil-default': {
     kernel: 'native-aurora-veil',
     gridScale: 128,
@@ -1990,7 +1801,21 @@ export const VISUALIZER_TUNINGS = {
     grainScale: 3.3,
     cellScale: 2.25,
     erosion: 0.48,
-    veinGlow: 0.82,
+    reliefGain: 0.72,
+  },
+  'three-light-rays-default': {
+    kernel: 'three-light-rays',
+    rayDensity: 48,
+    rayDecay: 0.93,
+    rayExposure: 1.4,
+    moteScale: 2.8,
+  },
+  'three-sparse-veil-default': {
+    kernel: 'three-sparse-veil',
+    maxLayers: 4,
+    noiseScale: 1.6,
+    scrollSpeed: 0.014,
+    breathAmplitude: 0.6,
   },
 } as const;
 
@@ -2066,28 +1891,10 @@ export function resolveCongGreenGalaxyTuning(tuning?: VisualizerTuningConfig): C
     : VISUALIZER_TUNINGS['cong-green-galaxy-default'];
 }
 
-export function resolveCongChordStormTuning(tuning?: VisualizerTuningConfig): CongChordStormTuning {
-  return tuning?.kernel === 'cong-chord-storm'
-    ? tuning
-    : VISUALIZER_TUNINGS['cong-chord-storm-default'];
-}
-
-export function resolveCongTopBottomStormTuning(tuning?: VisualizerTuningConfig): CongTopBottomStormTuning {
-  return tuning?.kernel === 'cong-top-bottom-storm'
-    ? tuning
-    : VISUALIZER_TUNINGS['cong-top-bottom-storm-default'];
-}
-
 export function resolveCongGenerativeParticlesTuning(tuning?: VisualizerTuningConfig): CongGenerativeParticlesTuning {
   return tuning?.kernel === 'cong-generative-particles'
     ? tuning
     : VISUALIZER_TUNINGS['cong-landscape-og-current-default'];
-}
-
-export function resolveCongMistFieldTuning(tuning?: VisualizerTuningConfig): CongMistFieldTuning {
-  return tuning?.kernel === 'cong-mist-field'
-    ? tuning
-    : VISUALIZER_TUNINGS['cong-mist-field-default'];
 }
 
 export function resolveCongHorizonFieldTuning(tuning?: VisualizerTuningConfig): CongHorizonFieldTuning {
@@ -2102,28 +1909,10 @@ export function resolveCongWaterlineShimmerTuning(tuning?: VisualizerTuningConfi
     : VISUALIZER_TUNINGS['cong-waterline-shimmer-default'];
 }
 
-export function resolveCongGrainErosionTuning(tuning?: VisualizerTuningConfig): CongGrainErosionTuning {
-  return tuning?.kernel === 'cong-grain-erosion'
-    ? tuning
-    : VISUALIZER_TUNINGS['cong-grain-erosion-default'];
-}
-
-export function resolveCongWanderingLinesTuning(tuning?: VisualizerTuningConfig): CongWanderingLinesTuning {
-  return tuning?.kernel === 'cong-wandering-lines'
-    ? tuning
-    : VISUALIZER_TUNINGS['cong-wandering-lines-default'];
-}
-
 export function resolveCongBrokenGridTuning(tuning?: VisualizerTuningConfig): CongBrokenGridTuning {
   return tuning?.kernel === 'cong-broken-grid'
     ? tuning
     : VISUALIZER_TUNINGS['cong-broken-grid-default'];
-}
-
-export function resolveCongSparseConstellationTuning(tuning?: VisualizerTuningConfig): CongSparseConstellationTuning {
-  return tuning?.kernel === 'cong-sparse-constellation'
-    ? tuning
-    : VISUALIZER_TUNINGS['cong-sparse-constellation-default'];
 }
 
 export function resolveCongEmberGeologyTuning(tuning?: VisualizerTuningConfig): CongEmberGeologyTuning {
@@ -2166,12 +1955,6 @@ export function resolveNativeAttractorDriftTuning(tuning?: VisualizerTuningConfi
   return tuning?.kernel === 'native-attractor-drift'
     ? tuning
     : VISUALIZER_TUNINGS['native-attractor-drift-default'];
-}
-
-export function resolveNativeNightfallRidgesTuning(tuning?: VisualizerTuningConfig): NativeNightfallRidgesTuning {
-  return tuning?.kernel === 'native-nightfall-ridges'
-    ? tuning
-    : VISUALIZER_TUNINGS['native-nightfall-ridges-default'];
 }
 
 export function resolveNativeAuroraVeilTuning(tuning?: VisualizerTuningConfig): NativeAuroraVeilTuning {
@@ -2226,6 +2009,18 @@ export function resolveThreeFlatMaterialTuning(tuning?: VisualizerTuningConfig):
   return tuning?.kernel === 'three-flat-material'
     ? tuning
     : VISUALIZER_TUNINGS['three-flat-material-default'];
+}
+
+export function resolveThreeLightRaysTuning(tuning?: VisualizerTuningConfig): ThreeLightRaysTuning {
+  return tuning?.kernel === 'three-light-rays'
+    ? tuning
+    : VISUALIZER_TUNINGS['three-light-rays-default'];
+}
+
+export function resolveThreeSparseVeilTuning(tuning?: VisualizerTuningConfig): ThreeSparseVeilTuning {
+  return tuning?.kernel === 'three-sparse-veil'
+    ? tuning
+    : VISUALIZER_TUNINGS['three-sparse-veil-default'];
 }
 
 export function describeVisualizerTuning(tuningKey?: VisualizerTuningKey): string {

@@ -197,6 +197,7 @@ export function createCongGenerativeParticles(): Visualizer {
   }
 
   function buildRendererSequence(initial: CongGenerativeParticleRenderer): readonly CongGenerativeParticleRenderer[] {
+    if (tuning.lockRendererCycle) return [initial];
     const modes: readonly CongGenerativeParticleRenderer[] = ['points', 'streaks', 'cloud-puffs', 'rays', 'chords', 'mirrored-points'];
     const start = Math.max(0, modes.indexOf(initial));
     return [...modes.slice(start), ...modes.slice(0, start)];
@@ -797,11 +798,48 @@ export function createCongGenerativeParticles(): Visualizer {
     const [cr, cg, cb] = applyColorMix([ar, ag, ab], centerColorTarget, centerColorProgress);
     const centerAlpha = tuning.centerFormAlpha ?? tuning.overlayAlpha;
     const { x, y } = centerPosition();
+    const isTopBottomStorm = tuning.mode === 'storm' && tuning.emitter === 'top-bottom';
     const haloRadius = tuning.centerHaloRadius ?? (tuning.mode === 'cloud-again' ? 0.34 : 0.24);
     const radius = Math.max(w, h) * haloRadius * centerScale;
     const haloAlpha = Math.min(0.42, centerAlpha + centerAlphaBoost + curParams.glow * 0.05 + curAudio.energy * 0.032);
     const previousComposite = ctx.globalCompositeOperation;
     if (centerColorTarget || layer === 'foreground') setComposite(ctx, 'source-over');
+
+    if (isTopBottomStorm) {
+      if (layer === 'background') {
+        const edgeAlpha = haloAlpha * 0.32 + curAudio.bass * 0.01;
+        const edgeGlow = ctx.createLinearGradient(0, 0, 0, h);
+        edgeGlow.addColorStop(0, `rgba(${cr},${cg},${cb},${edgeAlpha})`);
+        edgeGlow.addColorStop(0.18, `rgba(${cr},${cg},${cb},0)`);
+        edgeGlow.addColorStop(0.82, `rgba(${wr},${wg},${wb},0)`);
+        edgeGlow.addColorStop(1, `rgba(${wr},${wg},${wb},${edgeAlpha * 0.86})`);
+        ctx.fillStyle = edgeGlow;
+        ctx.fillRect(0, 0, w, h);
+      } else if (centerAlpha > 0) {
+        const collisionWidth = Math.max(16, h * (0.034 + curAudio.bass * 0.01));
+        const collisionY = h * (tuning.centerY + Math.sin(time * 0.11) * 0.018);
+        const collision = ctx.createLinearGradient(0, collisionY - collisionWidth, 0, collisionY + collisionWidth);
+        collision.addColorStop(0, `rgba(${cr},${cg},${cb},0)`);
+        collision.addColorStop(0.5, `rgba(${wr},${wg},${wb},${Math.min(0.14, haloAlpha * 0.46)})`);
+        collision.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
+        ctx.fillStyle = collision;
+        ctx.fillRect(0, collisionY - collisionWidth, w, collisionWidth * 2);
+
+        const seamAlpha = Math.min(0.08, centerAlpha * 0.36 + centerAlphaBoost * 0.12 + curAudio.transient * 0.025);
+        ctx.strokeStyle = `rgba(${cr},${cg},${cb},${seamAlpha})`;
+        ctx.lineWidth = Math.max(0.7, Math.min(1.4, h * 0.0012));
+        ctx.beginPath();
+        for (let index = 0; index <= 10; index += 1) {
+          const px = (index / 10) * w;
+          const py = collisionY + Math.sin(time * 0.32 + index * 0.84) * h * 0.006;
+          if (index === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+      setComposite(ctx, previousComposite);
+      return;
+    }
 
     if (layer === 'background') {
       const halo = ctx.createRadialGradient(x, y, 0, x, y, radius);

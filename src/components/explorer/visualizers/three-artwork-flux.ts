@@ -43,6 +43,7 @@ const FEEDBACK_SHADER = /* glsl */ `
   uniform float uFlux;
   uniform float uReveal;
   uniform float uChromatic;
+  uniform float uSectionAmp;
   uniform vec2  uTexel;
 
   vec2 coverUv(vec2 uv){
@@ -68,12 +69,12 @@ const FEEDBACK_SHADER = /* glsl */ `
   void main(){
     vec2 uv = vUv;
     float t = uTime * (0.045 + uDrift * 0.055);
-    float structural = uLevel * 0.35 + uSectionProgress * 0.45 + uFlux * 0.55;
+    float structural = (uLevel * 0.35 + uSectionProgress * 0.45 + uFlux * 0.55) * uSectionAmp;
     vec2 curl = vec2(
       snoise(vec3(uv * 2.0, t)),
       snoise(vec3(uv.yx * 2.3 + 17.0, t + 2.0))
     );
-    vec2 drift = curl * uDisplace * (0.004 + structural * 0.018);
+    vec2 drift = curl * uDisplace * (0.004 + structural * 0.022);
     vec2 smear = vec2(uTexel.x * (1.0 + uFlux * 7.0), 0.0);
 
     vec3 prev = texture2D(uFeedback, clamp(uv + drift, 0.001, 0.999)).rgb;
@@ -136,6 +137,8 @@ function makeArtworkFluxScene(): ThreeScene {
   let hasHistory = 0;
   let flux = 0;
   let fluxTarget = 0;
+  let warmColor: [number, number, number] | null = null;
+  let colorMorph = 0;
   const section = createSectionProgress();
 
   function updateTargetSize(width: number, height: number): void {
@@ -184,6 +187,7 @@ function makeArtworkFluxScene(): ThreeScene {
       feedbackUniforms.uDisplace = { value: tuning.displacement };
       feedbackUniforms.uFlux = { value: 0 };
       feedbackUniforms.uReveal = { value: tuning.reveal };
+      feedbackUniforms.uSectionAmp = { value: 0 };
       feedbackUniforms.uChromatic = { value: tuning.chromaticAberration };
       feedbackUniforms.uTexel = { value: new three.Vector2(1 / targetW, 1 / targetH) };
 
@@ -203,6 +207,8 @@ function makeArtworkFluxScene(): ThreeScene {
       hasHistory = 0;
       flux = 0;
       fluxTarget = 0;
+      colorMorph = 0;
+      warmColor = null;
       artworkTexture = null;
       section.reset();
       tryLoadArtworkTexture();
@@ -224,6 +230,18 @@ function makeArtworkFluxScene(): ThreeScene {
       feedbackUniforms.uFlux.value = Math.min(1, flux + params.impulse * 0.3);
       feedbackUniforms.uMemory.value = Math.min(0.96, tuning.memory + audio.energy * 0.04);
       feedbackUniforms.uDisplace.value = tuning.displacement * (0.65 + params.turbulence * 0.7 + flux * 0.5);
+      // Section arc: near-zero warp in section 0, full by section 3 (smoothstep gives qualitative jump)
+      feedbackUniforms.uSectionAmp.value = Math.pow(Math.min(1, section.value * 1.5), 1.6);
+      // Color-morph: tint the warm pole toward event colour
+      if (warmColor && colorMorph > 0.001 && palette) {
+        const baseWarm = palette.accentWarm;
+        const r = mixNum(baseWarm[0], warmColor[0], colorMorph) / 255;
+        const g = mixNum(baseWarm[1], warmColor[1], colorMorph) / 255;
+        const b = mixNum(baseWarm[2], warmColor[2], colorMorph) / 255;
+        (feedbackUniforms.uColorWarm.value as import('three').Vector3).set(r, g, b);
+        (displayUniforms.uColorWarm.value as import('three').Vector3).set(r, g, b);
+        colorMorph = Math.max(0, colorMorph - dt * 0.3);
+      }
     },
 
     preRender() {
@@ -244,6 +262,11 @@ function makeArtworkFluxScene(): ThreeScene {
       }
       if (event.type === 'glow-pulse' || event.type === 'bloom-flash') {
         fluxTarget = Math.min(1, fluxTarget + 0.18 + intensity * 0.28);
+      }
+      if ((event.type === 'color-morph' || event.type === 'palette-morph') && event.color) {
+        warmColor = event.color;
+        colorMorph = Math.min(1, 0.6 + intensity * 0.4);
+        fluxTarget = Math.min(1, fluxTarget + 0.5 + intensity * 0.4);
       }
     },
 

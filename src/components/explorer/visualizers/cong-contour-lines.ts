@@ -15,6 +15,9 @@ interface ContourBand {
   lineWidth: number;
   seed: number;
   tint: number;
+  depth: number;
+  lateral: number;
+  terrace: boolean;
 }
 
 function mix(a: number, b: number, t: number): number {
@@ -49,15 +52,19 @@ export function createCongContourLines(): Visualizer {
     bands = [];
     for (let index = 0; index < tuning.bandCount; index += 1) {
       const depth = index / Math.max(tuning.bandCount - 1, 1);
+      const perspective = Math.pow(depth, 1.42);
       bands.push({
-        baseY: h * (0.08 + depth * 0.84),
-        amp: 18 + (1 - depth) * 52,
-        freq: 0.0018 + depth * 0.0034,
-        speed: 0.08 + depth * 0.2,
-        alpha: 0.018 + depth * 0.05,
-        lineWidth: 0.8 + (1 - depth) * 2,
+        baseY: h * (0.14 + perspective * 0.8),
+        amp: 8 + depth * 58,
+        freq: 0.0014 + depth * 0.0048,
+        speed: 0.045 + depth * 0.22,
+        alpha: 0.012 + depth * 0.058,
+        lineWidth: 0.55 + depth * 2.3,
         seed: Math.random() * 1000,
         tint: depth,
+        depth,
+        lateral: (Math.random() - 0.5) * 160,
+        terrace: index % 4 === 0 && depth > 0.38,
       });
     }
   }
@@ -116,11 +123,23 @@ export function createCongContourLines(): Visualizer {
       const [ar, ag, ab] = palette.accentGlow;
       const [wr, wg, wb] = palette.accentWarm;
       const [dr, dg, db] = palette.dotColor;
-      const ampScale = 0.7 + curParams.turbulence * 1.6 + curAudio.bass * 0.4 + ampLift * 0.84;
+      const sectionArc = Math.min(1, sectionCueCount / 5 + densityLift * 0.16 + ridgeGlow * 0.12);
+      const revealDepth = 0.46 + sectionArc * 0.62 + curParams.density * 0.08;
+      const ampScale = 0.54 + curParams.turbulence * 1.35 + curAudio.bass * 0.52 + ampLift * 0.92 + sectionArc * 0.42;
+      const horizonY = h * (0.28 - sectionArc * 0.045 + Math.sin(time * 0.11) * 0.015);
+      const wash = ctx.createLinearGradient(0, horizonY - h * 0.12, 0, h);
+      wash.addColorStop(0, `rgba(${ar},${ag},${ab},${0.012 + ridgeGlow * 0.025})`);
+      wash.addColorStop(0.38, `rgba(${dr},${dg},${db},${0.016 + sectionArc * 0.018})`);
+      wash.addColorStop(1, `rgba(${wr},${wg},${wb},${0.008 + warmTurn * 0.02})`);
+      ctx.fillStyle = wash;
+      ctx.fillRect(0, 0, w, h);
 
       for (let index = 0; index < bands.length; index += 1) {
         const band = bands[index];
-        const tint = band.tint * 0.35 + curParams.glow * 0.45 + curAudio.highs * 0.2 + ridgeGlow * 0.2;
+        if (band.depth > revealDepth) continue;
+
+        const near = band.depth;
+        const tint = band.tint * 0.42 + curParams.glow * 0.38 + curAudio.highs * 0.2 + ridgeGlow * 0.2;
         const warmTint = warmTurn * (0.1 + band.tint * 0.16);
         const [red, green, blue] = cue.mixRidgeColor([
           Math.round(mix(mix(dr, ar, tint), wr, warmTint)),
@@ -128,24 +147,42 @@ export function createCongContourLines(): Visualizer {
           Math.round(mix(mix(db, ab, tint), wb, warmTint)),
         ], band.seed);
         const densityStep = cue.densityProgress(band.seed);
-        const baseAlpha = band.alpha * (0.55 + curParams.density * 0.9 + curParams.shimmer * 0.2 + densityLift * 0.72 + ridgeGlow * 0.42) * Math.max(0, Math.min(1, 1 + densityStep * 0.58));
+        const depthReveal = Math.max(0, Math.min(1, (revealDepth - band.depth) / 0.18));
+        const baseAlpha = band.alpha
+          * (0.45 + near * 0.72 + curParams.density * 0.9 + curParams.shimmer * 0.18 + densityLift * 0.72 + ridgeGlow * 0.42)
+          * Math.max(0, Math.min(1, 1 + densityStep * 0.58))
+          * depthReveal;
+
+        const lineWidth = band.lineWidth * (0.72 + near * 0.7 + widthLift * 0.76 + cue.sizeProgress(band.seed) * 0.42);
+        const parallax = (time * (12 + near * 46) + band.lateral + Math.sin(time * 0.16 + band.seed) * 28) * (0.18 + near);
+        const crush = 1 - sectionArc * 0.08 * (1 - near);
+        const sampleY = (x: number): number => {
+          const px = x + parallax;
+          const noise = q.noise(
+            px * band.freq + band.seed,
+            time * band.speed + band.seed,
+            sectionArc * 0.7 + 100 / (0.3 + curAudio.bass + band.tint),
+          );
+          const folded = q.noise(
+            px * band.freq * 2.8 + band.seed * 0.31,
+            band.depth * 13.7 + time * 0.06,
+            8.7,
+          );
+          const swing = Math.sin(px * (0.0028 + near * 0.002) + time * (0.48 + band.speed) + band.seed) * (3 + curAudio.mids * 14 + sectionArc * 10);
+          const faultPull = Math.sin((x / Math.max(w, 1)) * Math.PI * (1.4 + sectionArc * 1.3) + band.seed) * sectionArc * near * 22;
+          let y = horizonY * (1 - near) + band.baseY * near * crush + (noise - 0.5) * band.amp * ampScale + (folded - 0.5) * band.amp * 0.28 * sectionArc + swing + faultPull;
+
+          const exclusion = computeExclusion(x, y, curExclusion);
+          return band.baseY + (y - band.baseY) * exclusion.motion;
+        };
 
         ctx.strokeStyle = `rgba(${red},${green},${blue},${baseAlpha})`;
-        ctx.lineWidth = band.lineWidth * (1 + widthLift * 0.76 + cue.sizeProgress(band.seed) * 0.42);
+        ctx.lineWidth = lineWidth;
         ctx.beginPath();
 
         let started = false;
         for (let x = -80; x <= w + 80; x += tuning.xStep) {
-          const noise = q.noise(
-            x * band.freq + band.seed,
-            time * band.speed + band.seed,
-            100 / (0.3 + curAudio.bass + band.tint),
-          );
-          const swing = Math.sin(x * 0.004 + time * (0.8 + band.speed) + band.seed) * (4 + curAudio.mids * 10);
-          let y = band.baseY + (noise - 0.5) * band.amp * ampScale + swing;
-
-          const exclusion = computeExclusion(x, y, curExclusion);
-          y = band.baseY + (y - band.baseY) * exclusion.motion;
+          const y = sampleY(x);
 
           if (!started) {
             ctx.moveTo(x, y);
@@ -156,6 +193,74 @@ export function createCongContourLines(): Visualizer {
         }
 
         ctx.stroke();
+
+        if (sectionArc > 0.32 && near < 0.58 && index % 3 === 0) {
+          const glintCount = 1 + Math.floor(sectionArc * 3);
+          ctx.save();
+          ctx.globalCompositeOperation = 'screen';
+          ctx.fillStyle = `rgba(${wr},${wg},${wb},${Math.min(0.018 + ridgeGlow * 0.06 + curAudio.highs * 0.035, 0.12)})`;
+          for (let glint = 0; glint < glintCount; glint += 1) {
+            const frac = q.noise(band.seed, glint * 17.3, 4.1);
+            const x = -40 + frac * (w + 80);
+            const y = sampleY(x);
+            const exclusion = computeExclusion(x, y, curExclusion);
+            if (exclusion.density < 0.45) continue;
+            const radius = (0.7 + q.noise(glint, band.seed, time * 0.08) * 1.8) * (0.65 + sectionArc);
+            ctx.beginPath();
+            ctx.arc(x, y - 1.5 - near * 6, radius, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        if (band.terrace && sectionArc > 0.18) {
+          const terraceAlpha = baseAlpha * (0.8 + near * 1.4) * Math.min(1, sectionArc * 1.4);
+          ctx.fillStyle = `rgba(${red},${green},${blue},${Math.min(terraceAlpha, 0.045)})`;
+          ctx.beginPath();
+          let fillStarted = false;
+          for (let x = -80; x <= w + 80; x += tuning.xStep) {
+            const y = sampleY(x);
+            if (!fillStarted) {
+              ctx.moveTo(x, y);
+              fillStarted = true;
+            } else {
+              ctx.lineTo(x, y);
+            }
+          }
+          ctx.lineTo(w + 80, h + 80);
+          ctx.lineTo(-80, h + 80);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      if (sectionArc > 0.22 || ampLift > 0.25 || ridgeGlow > 0.1) {
+        const seams = 2 + Math.floor(sectionArc * 3);
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        for (let seam = 0; seam < seams; seam += 1) {
+          const seed = 71 + seam * 113;
+          const baseX = w * (0.18 + seam * 0.21 + q.noise(seed, 0, 0) * 0.08 + Math.sin(time * 0.06 + seed) * 0.035);
+          const alpha = (0.012 + ridgeGlow * 0.035 + curAudio.transient * 0.04) * Math.min(1, sectionArc * 1.4);
+          ctx.strokeStyle = `rgba(${wr},${wg},${wb},${alpha})`;
+          ctx.lineWidth = 0.7 + sectionArc * 1.5 + ridgeGlow * 1.2;
+          ctx.beginPath();
+          let started = false;
+          for (let y = h * 0.12; y <= h * 0.98; y += 28) {
+            const drift = (q.noise(seed, y * 0.004, time * 0.045) - 0.5) * (40 + sectionArc * 80);
+            const x = baseX + drift + Math.sin(y * 0.018 + time * 0.22 + seed) * (8 + sectionArc * 18);
+            const exclusion = computeExclusion(x, y, curExclusion);
+            const safeX = baseX + (x - baseX) * exclusion.motion;
+            if (!started) {
+              ctx.moveTo(safeX, y);
+              started = true;
+            } else {
+              ctx.lineTo(safeX, y);
+            }
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
       }
 
       if (curParams.glow > tuning.accentGlowThreshold || curAudio.transient > tuning.accentTransientThreshold || ridgeGlow > 0.05) {

@@ -77,7 +77,7 @@ Keep `q.pixelDensity(1)` for predictable performance.
 Noise cost rules (the explorer's main CPU sink is Perlin, not rasterization):
 
 - The shared explorer instance runs `q.noiseDetail(4, 0.5)`, so every `q.noise()` call costs 4 Perlin evaluations. Never wrap it in an octave loop — `fbm()` in `cong-particle-primitives.ts` already exists and reads a dedicated single-octave source.
-- Never refresh a full noise field (heightlines, grids) every frame. Amortize round-robin across frames the way `native-nightfall-ridges` refreshes one layer per frame and interpolates between refreshes.
+- Never refresh a full noise field (heightlines, grids) every frame. Amortize round-robin across frames, cache generated rows/layers where possible, and interpolate between refreshes.
 - Per-particle `q.noise()` flow lookups should be cached and refreshed on alternating frames when the field morphs slowly (see `native-gravity-current`).
 - Cache CanvasGradients keyed by quantized color/geometry and ride per-frame alpha on `globalAlpha`; never create gradients per frame in a layer loop.
 

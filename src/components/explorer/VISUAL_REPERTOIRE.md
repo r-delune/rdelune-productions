@@ -38,7 +38,7 @@ Visuals that feel like terrain, horizons, valleys, ridgelines, or distance.
 - topographic drift
 - low landscape currents
 
-Current coverage: `cong-contour-lines`, `cong-landscape-flow`, `cong-landscape-og-current`, `native-nightfall-ridges` (stacked parallax ridgelines with valley mist, rim light, and distant glints); `cong-horizon-field` is review-ready as a mirrored mist-horizon family.
+Current coverage: `cong-contour-lines` (section-revealed parallax terraces with sparse ridge glints), `cong-landscape-flow`, `cong-landscape-og-current`; `cong-horizon-field` is review-ready as a mirrored mist-horizon family.
 
 ### Weather
 

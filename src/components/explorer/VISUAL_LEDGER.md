@@ -16,13 +16,12 @@
 1. **Ground in the operating contract.** Hermes reads `HERMES.md`, starts a per-cycle `/goal` when supported,
    and confirms the expected token/spend risk before editing.
 2. **Ground in the aesthetic.** Read `AGENT_GUIDE.md` §1–§3 (aesthetic, toolkit, audio rule).
-3. **Pick one item.** Scan the **Coverage Map**, **Technique Coverage**, the **New-Visual Queue**, and **Improvement Candidates**.
-   Choose the single highest-value item. Bias toward:
-   - **under-covered families** over piling onto a well-covered mood (diversity);
-   - **under-used GPU techniques** over another fullscreen shader;
-   - **clear aesthetic or perf wins** on existing sketches (revisit old work when a better version exists);
-   - **novel rendering structures** over yet another particle preset.
-4. **Do the work.** New → follow `THREE_GENERATION_PROMPT.md` + `THREE_INTEGRATION.md`. Canvas2D work is legacy maintenance only. Improvement → follow the Improvement Protocol below.
+3. **Check the current cycle mode** (set by the owner — do not override):
+   > **Current mode: OPEN** — improvement candidates cleared; new kernels may ship freely. Prioritise new-visual queue first, then continue improvement if you notice regression.
+
+   Within improvement mode, pick the highest-priority candidate and the most needed improvement dimension. Do not pick the same dimension consecutively.
+
+4. **Do the work.** Improvement → follow the Improvement Protocol below. New (only when mode allows) → follow `THREE_GENERATION_PROMPT.md` + `THREE_INTEGRATION.md`. Canvas2D work is legacy maintenance only.
 5. **Self-review** against the **Aesthetic Rubric** below. Fail any line → revise and re-review. Don't ship a
    sketch that fails the rubric.
 6. **Verify** with `npm run verify` (lint + `check-rotation` reachability + build) plus `AGENT_GUIDE.md` §8 and `HERMES.md` deploy gates (mood lab `M`, governor ~1.0, reduced-motion, no console errors). A finished sketch enters rotation by flags (`productionReady` + `randomEligible`), not by editing `GENERATIVE_VARIETY_SEQUENCE`; `check-rotation` fails if a finished recipe is unreachable.
@@ -31,10 +30,22 @@
 
 ### Improvement Protocol (revisiting an existing sketch)
 - Keep the recipe ID stable unless you're deliberately retiring it (note retirements in the ledger).
-- State the specific win up front: perf headroom, depth-over-density, richer section arc, or aesthetic drift
-  correction. One clear win per cycle beats a vague rewrite.
+- **Pick one dimension from the Improvement Techniques table below.** State which dimension, and what the before/after difference will be. One clear win per cycle beats a vague rewrite.
 - A/B the before/after in the mood lab; confirm the governor isn't worse and memory stays flat.
 - Record before → after in the Worklog so the trajectory is auditable and the work isn't redone.
+
+### Improvement Techniques (rotate through these — do not repeat the same dimension twice in a row)
+
+These are the only valid improvement targets. Each addresses a specific failure mode seen in the current Three.js sketches. Track which has been applied last in the Worklog.
+
+| Dimension | What to fix | Failure mode it corrects |
+|---|---|---|
+| **Section arc depth** | Scene *structure* changes between sections — new elements appear, depth separates, composition shifts. Not just brightness/scale tweaks. | "Looks the same throughout the track" |
+| **Event reactivity** | At least one `visual_event` type triggers a distinct, visible scene moment — not a nudged float. `color-morph` should cascade; `intensity-peak` should restructure something. | "Events do nothing noticeable" |
+| **Motion quality** | Motion reads as *intentional* — rising, condensing, dispersing, orbiting. Replace uniform noise scroll with directed motion that has a clear quality and speed. | "It just slowly moves / noise scrolling" |
+| **Depth & parallax** | Add a foreground / background separation or depth cue. Layers at different Z, parallax shift, near-vs-far contrast. Fullscreen flat materials fail this. | "Completely flat, no sense of space" |
+| **Colour & mood range** | Palette responds to section role and mood tuning with range. Section 1 should feel tonally different from section 3 — not just a brightness knob. | "The colour barely changes" |
+| **Performance headroom** | Identify and fix one per-frame allocation, gradient churn, or unbounded loop. Confirm governor holds ≥ 0.95 under load. | "Governor drops under complex tracks" |
 
 ---
 
@@ -45,15 +56,15 @@ Families mirror `VISUAL_REPERTOIRE.md`. Update counts/gaps as work lands. `+` = 
 | Family | State | Current coverage | Open gap |
 |---|---|---|---|
 | Atmosphere | + | `cong-cloud-orbit`, `cong-cloud-again-intro-generative`, `native-aurora-veil`, `three-volumetric-fog` | — |
-| Landscape | + | `cong-contour-lines`, `cong-landscape-flow`, `cong-landscape-og-current`, `native-nightfall-ridges`, `cong-horizon-field` (review-ready) | — |
+| Landscape | + | `cong-contour-lines` (merged ridge/glint ideas), `cong-landscape-flow`, `cong-landscape-og-current`, `cong-horizon-field` (review-ready) | — |
 | Weather | + | `cong-rain-shower`, `cong-top-bottom-storm`, `native-sidewind-drift` | — |
 | Water / Tide | + | `cong-waterline-shimmer`, `three-caustics` | — |
 | Texture | + | native overlays/grain; `cong-artwork-datamosh-rain-evolution` (legacy restrained accent); `three-artwork-flux` (artwork feedback); `three-volumetric-fog` (partial); `three-flat-material` | continue tuning procedural surfaces against fog/artwork overlap |
-| Light | ~ | `grid-rays`, `random-chords` overlays | **!** light-only recipes that don't require dense particles |
-| Linework | ~ | `cong-cloud-again-lines`, `cong-contour-lines` | **!** non-cloud `cong-wandering-lines` recipe/kernel |
+| Light | + | `three-light-rays` (god-rays + motes), `grid-rays`, `random-chords` overlays | — |
+| Linework | ~ | `cong-contour-lines` | non-cloud linework family still open |
 | Grid / Structure | ! | `grid-rays` overlay | **!** `cong-grid-pulse` (restrained tile/grid pulse) from `derkdisco` |
-| Orbit / Core | + | `cong-planet-core`, `native-gravity-current`, `three-fresnel-core` | near-still tableau still open |
-| Sparse Minimal | ~ | `three-fresnel-core` (partial) | **!** intentional sparse/minimal recipes for outros & low-energy tracks; Three near-still tableaux |
+| Orbit / Core | + | `cong-planet-core`, `native-gravity-current`, `three-fresnel-core` | — |
+| Sparse Minimal | + | `three-sparse-veil` (near-still volumetric mist), `three-fresnel-core` | — |
 
 When a technique is confirmed/retired, also reflect it in `cong/ledger.ts` (`reviewState`, `archiveStatus`).
 
@@ -72,6 +83,10 @@ Rotate GPU techniques so the repertoire does not become only fullscreen fragment
 | Artwork texture sampling | + | `three-artwork-flux` | Keep accent-only; never opener |
 | Fresnel / SDF / core form | + | `three-fresnel-core` | — |
 | Light-only GPU scene | ! | — | Glints/rays/bloom without dense particles |
+| Reaction-diffusion (Gray-Scott) | ! | — | **Highest-priority new technique** — organic Turing/cellular/erosion patterns via ping-pong FBO; more organic than any existing texture |
+| GPU fluid advection | ! | — | Velocity-field ping-pong; drives particle trails like smoke/ink; far more organic than noise-driven motion |
+| Section easing curves (shared helper) | ! | — | All kernels lerp linearly to section progress; a `createSectionEasing(role)` helper would make all transitions feel musical |
+| Film grain / vignette utility (shared) | ! | — | ~5 GLSL lines; cinematic depth uplift across all Three kernels; build once, import everywhere |
 
 ---
 
@@ -81,9 +96,9 @@ Seeded from `VISUAL_REPERTOIRE.md` declared gaps + "Next Batch". Prefer Three-fi
 
 1. ~~**Fresnel bloom core**~~ — ✅ shipped as `three-fresnel-core` (2026-06-18)
 2. ~~**Flat material texture**~~ — ✅ shipped as `three-flat-material` (2026-06-19)
-3. **Light-only recipe** — luminous glints/rays/soft bloom that does not need dense particles. Fills Light. (Three)
-4. **Near-still volumetric tableau** — premium low-density ending for outros/low-energy tracks. Fills Sparse Minimal. (Three)
-5. **Legacy Canvas2D maintenance** — `cong-grid-pulse`, `cong-mist-noise`, `cong-wandering-lines` only when the cycle is explicitly maintenance.
+3. ~~**Light-only recipe**~~ — ✅ shipped as `three-light-rays` (2026-06-19)
+4. ~~**Near-still volumetric tableau**~~ — ✅ shipped as `three-sparse-veil` (2026-06-19)
+5. **Legacy Canvas2D maintenance** — `cong-grid-pulse` only when the cycle is explicitly maintenance.
 
 Creative-prototype track (from `VISUAL_REPERTOIRE.md` New Sketch Baseline, building off `cong-lateral-current`):
 `cong-symmetry-particles` → recursive/tree growth → snowflake field → Mandelbrot/Julia (once perf & AA are clear).
@@ -93,13 +108,27 @@ Creative-prototype track (from `VISUAL_REPERTOIRE.md` New Sketch Baseline, build
 ## Improvement Candidates (revisit existing sketches)
 
 Running list of existing sketches worth a better version. Add to this whenever you notice one; remove when done
-(log it in the Worklog). Seed entries:
+(log it in the Worklog).
 
-- _(none recorded yet — populate as the agent reviews the repertoire in the mood lab)_
+All five Three.js improvement candidates cleared 2026-06-19. See Worklog.
 
-Look for: sketches that read denser-than-deep, weak/absent five-section arcs, per-frame allocation or noise-cost
-hotspots, gradients/`fillStyle` churn, aesthetic drift (mechanical motion, diagrammatic geometry, off-tone
-color), or anything that blanks under reduced motion.
+### Retirement candidates (fail World/Ecosystem Test — no spatial metaphor)
+
+### Retirement candidates (fail World/Ecosystem Test — no spatial metaphor)
+
+These kernels read as abstract visualizers rather than worlds. Prefer retiring over improving if the GPU technique is covered elsewhere.
+
+- **`native-lissajous`** — mathematical Lissajous curves = explicit visualizer pattern. No world presence. Retire unless it can be reframed as a specific spatial metaphor (e.g. "orbital paths of a binary star system").
+- **`cong-chromatic-ring`** — concentric ring pulse = classic WMP visualizer. No spatial depth. Retire or rework as a planetary atmosphere / ripple-in-water metaphor with clear foreground/background.
+- **`native-kaleido-fold`** — kaleidoscope = pattern, not place. Retire unless it can be reframed as a crystalline geological structure or frost formation with depth planes.
+- **`cong-colour-vortex`** — abstract color vortex with no world reference. Retire or rework as a weather event (waterspout, dust devil) with directional motion and depth.
+
+### Entrance arc fixes (uniform-density kernels)
+
+- **`three-curl-flow`** · Priority: HIGH — add entrance arc (section 1: ~10% of max count entering from below; sections 2–4: count climbs; section 5: disperses). The school-of-fish/murmuration world-presence is already strong; the missing arc is the main failure.
+- **`three-fresnel-core`** · (already in candidates above) — add emergence: start as a distant point of light, expand to full sphere by section 2; orbiting secondary form from section 3.
+
+Look for additional candidates: sketches that read denser-than-deep, weak/absent five-section arcs, per-frame allocation or noise-cost hotspots, gradients/`fillStyle` churn, aesthetic drift (mechanical motion, diagrammatic geometry, off-tone color), or anything that blanks under reduced motion.
 
 ---
 
@@ -110,12 +139,17 @@ color), or anything that blanks under reduced motion.
 - [ ] **Intricate at rest** — looks beautiful with no audio playing.
 - [ ] **Organic, not mechanical** — curves over lines, drift over bounce; no concentric rings / target pulses /
       un-jittered grids.
-- [ ] **Section arc present** — a five-section internal arc; visual evolves with song structure.
+- [ ] **Section arc present** — a five-section internal arc; the scene *structure* (not just brightness or scale) changes between section 1 and section 3. A viewer watching section 1 vs section 3 should feel a different scene, not just a different brightness.
 - [ ] **Audio as accent, not clock** — reacts generously to `AudioSignal`; no analysis/DSP/synthetic beat clock.
 - [ ] **Reduced-motion safe** — stable, nonblank frame with `dt = 0`.
 - [ ] **Readable around player UI** — respects the exclusion rect.
 - [ ] **Adds diversity** — fills a family/technique/mood gap; not a denser duplicate of an existing family.
 - [ ] **Performant** — governor holds ~1.0; uses `getParticleBudget`/`fbm`; frees buffers in `destroy`/`dispose`.
+- [ ] **Visually surprising** — a first-time viewer would ask "what is that?" within 3 seconds. If the concept can be summarised as "a glowing circle" or "a noise texture," it fails this line.
+- [ ] **Perceivable section arc** — the visual at section 1 and section 3 look and feel meaningfully different (different density, brightness, form, or depth — not just slightly brighter).
+- [ ] **Technique is distinct** — the core GPU technique is not already used by an existing Three.js kernel (or if it is, the scene role is clearly and specifically different — state why).
+- [ ] **World/ecosystem presence** — reads as a place or living system, not an abstract pattern. A viewer with no context should feel spatially located (inside a landscape, weather event, body of water, creature colony, space environment) — not watching a visualizer or abstract animation.
+- [ ] **Particle entrance arc** — for particle/field/instanced visuals: sparse in section 1 (elements arriving or waking), accumulating through sections 2–4, dispersing or stilling in section 5. Never at uniform density from frame 0.
 
 ---
 
@@ -123,7 +157,27 @@ color), or anything that blanks under reduced motion.
 
 Newest first. Format: `YYYY-MM-DD · new|improvement · <recipe/kernel> · <one-line outcome>`.
 
-- 2026-06-19 · new · `three-flat-material` · fullscreen GPU sediment/erosion surface; fills Texture gap with section-revealed mineral veins and no artwork dependency.
+- 2026-06-19 · new · `three-light-rays` · fullscreen god-ray + mote shader; fills Light family gap; startupEligible, section-sweeping light source, `color-morph` event.
+- 2026-06-19 · new · `three-sparse-veil` · near-still volumetric mist for outros/low-energy; fills Sparse Minimal; near-zero drift in sections 1–2, gentle exhale in 3+.
+- 2026-06-19 · improvement · `three-fresnel-core` · added orbiting secondary ring (section 2+), directed core drift, `color-morph` chromatic shift.
+- 2026-06-19 · improvement · `three-flat-material` · added per-section drift axis rotation, `color-morph` palette burst + erosion spike.
+- 2026-06-19 · improvement · `three-caustics` · added directional light-source sweep across sections, regional caustic tightening near peak.
+- 2026-06-19 · improvement · `three-curl-flow` · section-based noise frequency (broad→tight), directional flow bias fading out at peak, stronger depth/parallax via aDepth weighting.
+- 2026-06-19 · improvement · `three-artwork-flux` · near-zero section amplitude at section 0 → full warp by section 3; `color-morph` triggers burst warp.
+- 2026-06-19 · removal · 8 dead kernels · deleted `cong-chord-storm`, `cong-mist-field`, `cong-wandering-lines`, `cong-grain-erosion`, `cong-sparse-constellation`, `cong-top-bottom-storm`, `tide-lines`, `cong-tidal-mirror` + all associated tuning interfaces, presets, and resolvers.
+- 2026-06-19 · enable · `cong-horizon-field` · flipped `randomEligible` to true; now enters mid-section rotation.
+- 2026-06-19 · improvement · `three-fresnel-core` · Section arc depth: entrance arc (emerges from dim point in section 1) + depth background fbm layer gives spatial depth behind the sphere form.
+- 2026-06-19 · improvement · `three-flat-material` · Event reactivity + Section arc depth: boosted fault seam visibility at section 3+ (dark seams with lit edges); stronger color-morph cascade.
+- 2026-06-19 · improvement · `three-curl-flow` · Section arc depth: entrance arc (15% density at section 1, accumulates to full by section 2).
+- 2026-06-19 · improvement · `three-caustics` · Depth & parallax: always-present directional light gradient (subtle bloom toward light source, sharpens at peak sections).
+- 2026-06-19 · improvement · `three-light-rays` + `three-sparse-veil` · Reduced-motion safety: freeze time advancement under prefers-reduced-motion.
+- 2026-06-19 · removal+merge · duplicate ridge/contour sketch → `cong-contour-lines` · removed duplicate standalone sketch and folded sparse glints/depth cues into Contour Lines.
+- 2026-06-19 · removal · `native-terrain-erode-warm` · removed duplicate warm geology recipe; `native-terrain-erode` remains the single terrain-erode slot.
+- 2026-06-19 · removal · duplicate grid/particle variants · removed redundant `native-warp-mesh-reactive` and `native-flow-field-surge` recipes while keeping their shared kernels through distinct base recipes.
+- 2026-06-19 · removal+merge · `native-flow-field-thermal` → `native-flow-field-drift` · removed duplicate particle flow recipe and folded its vertical hue-gradient cue into the base drift recipe.
+- 2026-06-19 · improvement · `cong-contour-lines` · rebuilt flat contour strokes into section-revealed parallax terraces with horizon wash and event-lit fault seams.
+- 2026-06-19 · improvement · `cong-top-bottom-storm-template` · replaced literal center core with a horizontal collision veil and locked section cues to mirrored storm particles.
+- 2026-06-19 · new · `three-flat-material` · fullscreen GPU matte sediment/erosion surface; fills Texture gap with strata, pitted relief, and no artwork dependency.
 - 2026-06-18 · new · `three-fresnel-core` · fullscreen SDF Fresnel rim glow; fills Orbit/Core + Sparse Minimal gaps; startupEligible, section-arc, exclusion-rect support.
 - 2026-06-17 · new · `three-artwork-flux` + GPU helpers · added CORS-safe artwork texture loading, ping-pong FBO support, reusable instanced-field helper, and Three-first agent docs.
 - 2026-06-17 · meta · AGENT_GUIDE.md + VISUAL_LEDGER.md created · canonical aesthetic + continual-improvement system established.

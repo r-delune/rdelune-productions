@@ -44,6 +44,8 @@ const FRAGMENT_SHADER = /* glsl */ `
   uniform float uSharpness;
   uniform float uGlowGain;
   uniform float uFlash;
+  uniform vec2  uLightDir;   // directional light offset, shifts with section
+  uniform float uFocus;      // 0=uniform, 1=tightened to center-region near peak
 
   void main(){
     vec2 uv = vUv;
@@ -53,6 +55,9 @@ const FRAGMENT_SHADER = /* glsl */ `
     // Slow swell from the level envelope — no per-frame bass jump.
     float swell = 1.0 + uLevel * 0.35;
     vec2 p = uv * uNoiseScale * swell;
+
+    // Directional light shifts the noise base, simulating light-source movement.
+    p += uLightDir * uNoiseScale * 0.38;
 
     // Refractive warp from a slow second field; eased shimmer/level only.
     float warpAmt = uWarpAmount * (1.0 + uShimmer * 0.5 + uLevel * 0.3);
@@ -80,6 +85,18 @@ const FRAGMENT_SHADER = /* glsl */ `
       amp *= 0.62;
     }
     caustic /= max(0.001, norm);
+
+    // Directional light presence: spatially-varying falloff toward light direction,
+    // always active (creates a sense of light source even in section 1).
+    float aspect = uResolution.x / max(1.0, uResolution.y);
+    vec2 uvCentered = (vUv - 0.5) * vec2(aspect, 1.0);
+    float distFromLight = length(uvCentered - uLightDir * 0.5);
+    // Base directional gradient: subtle warm bloom toward the light source
+    float dirGlow = mix(0.62, 1.0, exp(-distFromLight * (0.9 + uSectionProgress * 0.8)));
+    caustic *= dirGlow;
+    // Near peak: caustic additionally tightens into center region
+    float focusFalloff = mix(1.0, smoothstep(0.85, 0.12, distFromLight), uFocus);
+    caustic *= mix(1.0, focusFalloff, uFocus * 0.7);
 
     // Glints: the brightest crests, lifted by eased spark/glow events only.
     float glint = pow(caustic, 3.0) * (1.0 + uFlash * 1.5);
@@ -129,6 +146,8 @@ function makeCausticsScene(): ThreeScene {
       uniforms.uSharpness = { value: tuning.sharpness };
       uniforms.uGlowGain = { value: tuning.additiveAlpha };
       uniforms.uFlash = { value: 0 };
+      uniforms.uLightDir = { value: new three.Vector2(0, 0) };
+      uniforms.uFocus = { value: 0 };
 
       const fs = createFullscreenScene(three, FRAGMENT_SHADER, uniforms);
       scene = fs.scene;
@@ -156,6 +175,16 @@ function makeCausticsScene(): ThreeScene {
       applyStandardUpdate(uniforms, dt, time, params, audio, exclusion, palette);
       uniforms.uFlash.value = flash;
       uniforms.uSectionProgress.value = section.value;
+      // Light source drifts from diffuse (centred) to directional as sections deepen.
+      const sp = section.value;
+      const lightAngle = sp * Math.PI * 0.6 - 0.3; // sweeps ~108° across song
+      const lightRadius = sp * 0.5;
+      (uniforms.uLightDir.value as import('three').Vector2).set(
+        Math.cos(lightAngle) * lightRadius,
+        Math.sin(lightAngle) * lightRadius * 0.5
+      );
+      // Near peak (section > 0.55) caustic tightens regionally
+      uniforms.uFocus.value = Math.max(0, (sp - 0.45) / 0.55);
       // Fractional layer count is the per-frame quality lever (frame-local);
       // the shader fades the partial top layer so there's no octave popping.
       uniforms.uLayers.value = Math.max(2, tuning.maxLayers * getQualityScale());

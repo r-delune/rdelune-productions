@@ -15,11 +15,16 @@ export interface ExclusionFactors {
 /** Fully outside — no degradation */
 const OUTSIDE: ExclusionFactors = { alpha: 1, motion: 1, density: 1, contrast: 1 };
 
-/** Fully inside — maximum degradation */
-const INSIDE_ALPHA    = 0.08;
-const INSIDE_MOTION   = 0.25;
-const INSIDE_DENSITY  = 0.35;
-const INSIDE_CONTRAST = 0.4;
+/**
+ * Fully inside the player footprint. Keep this subtle: dense sketches made
+ * the old near-zero alpha/density read as a visible bottom-right rectangle.
+ * The player panel already provides its own dark surface; this helper should
+ * only calm motion/detail behind it.
+ */
+const INSIDE_ALPHA    = 0.58;
+const INSIDE_MOTION   = 0.72;
+const INSIDE_DENSITY  = 0.68;
+const INSIDE_CONTRAST = 0.72;
 
 /**
  * Compute exclusion factors for a point relative to the panel rect.
@@ -41,7 +46,7 @@ export function computeExclusion(
     : y > rect.bottom
       ? (y - rect.bottom) / rect.pad
       : 0;
-  const dist = Math.max(dx, dy);
+  const dist = Math.hypot(dx, dy);
 
   // Fully outside the soft edge
   if (dist >= 1) return OUTSIDE;

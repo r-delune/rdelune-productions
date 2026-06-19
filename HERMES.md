@@ -49,7 +49,8 @@ Start every cycle from:
 1. `CLAUDE.md`
 2. `src/components/explorer/AGENT_GUIDE.md`
 3. `src/components/explorer/THREE_GENERATION_PROMPT.md`
-4. `src/components/explorer/VISUAL_LEDGER.md`
+4. `src/components/explorer/THREE_VISUAL_CONCEPTS.md`
+5. `src/components/explorer/VISUAL_LEDGER.md`
 
 Open deeper files only when directly relevant to the chosen work:
 
@@ -189,6 +190,36 @@ Every cycle must pass all gates before deploy. These replace human review.
    - Example: "Shipped `three-flat-surface`. Fills Texture gap. Grain/erosion GPU surface, ping-pong FBO, section-arc dark → bright."
 
 If any gate cannot be completed, stop and report exactly what was skipped and why. Do not commit or deploy a partial cycle.
+
+## Concept Gate (Three.js kernels only)
+
+Before writing any kernel code, run this gate on the **cheap model** (`qwen/qwen3-235b-a22b-2507`). Cost: ~$0.02 — less than 2% of the cycle budget. It prevents spending a full cycle budget on an unambitious visual.
+
+1. Open `src/components/explorer/THREE_VISUAL_CONCEPTS.md`. Read all concept briefs.
+2. Choose the concept that best fills the highest-priority gap in `VISUAL_LEDGER.md`.
+3. Write a 3-sentence concept pitch:
+   - "At t=5s, the viewer sees ..."
+   - "At the section peak, ..."
+   - "In the outro, ..."
+4. **Concept Pitch Test:** if any sentence sounds like "a glowing circle," "a noise texture," or "particles moving" with no scene specificity — fail. Pick a different concept.
+5. Self-score the concept against the Aesthetic Rubric in `VISUAL_LEDGER.md`. Must score ≥ 8/10.
+6. If pitch fails or score < 8: stop, pick a different concept, or propose a new brief in `THREE_VISUAL_CONCEPTS.md`. Do **not** proceed to implementation.
+7. Only on a passing pitch: proceed to write code.
+
+This gate is skipped for non-kernel cycles (tuning passes, QA, docs, helper improvements).
+
+## Technique Priority (read before concept gate)
+
+When choosing a new kernel concept, prefer techniques in this order — earlier = bigger gap:
+
+1. **Reaction-diffusion (Gray-Scott via ping-pong FBO)** — not yet implemented. Produces the most organic textures in the repertoire (Turing patterns, cellular growth, erosion). Feed/kill params are directly section-drivable. Reference: `three-artwork-flux.ts` for ping-pong FBO pattern.
+2. **GPU fluid advection (velocity field ping-pong)** — not yet implemented. Velocity field drives particle trails like smoke/ink, far more organic than curl-noise or plain noise offsets.
+3. **Shared helpers (one cycle each, not a full kernel):**
+   - `createSectionEasing(role)` — Bezier/ease curves for section progress; all existing kernels linearly lerp today; this makes transitions feel musical. Add to `three-scene-helpers.ts`.
+   - Film grain + vignette fullscreen utility — ~5 GLSL fragment shader lines; no postprocessing lib; import into any Three kernel's final pass.
+4. **Depth-of-field Z-blur** — fragment shader blur of far-Z layer in instanced kernels (`three-curl-flow`, `three-caustics`); adds perceived depth without postprocessing.
+
+Concept gate must prefer these gaps over techniques already covered. If the chosen concept uses a technique already implemented (fullscreen shader, Fresnel/SDF, raymarch, instanced field, ping-pong feedback, artwork texture), it must have a clearly different *scene role* — state why in the concept pitch.
 
 ## Creative Rules
 

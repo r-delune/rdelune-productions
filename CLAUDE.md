@@ -40,6 +40,24 @@ edge-redirects `/productions` here.
 - Known perf pitfalls: per-point fillStyle churn (batch into Path2D per color), per-frame Map/array allocation in kernels (reuse typed arrays), getImageData spikes (amortize over frames, operate on low-res sample canvases), un-throttled offscreen redraws (cache and re-render at half/third rate), Perlin octave compounding (the shared q5 instance runs `noiseDetail(4)` so each `q.noise()` = 4 evals; `fbm()` in `cong-particle-primitives.ts` therefore uses its own single-octave source — never stack octaves on the shared instance), full noise-field refreshes every frame (amortize round-robin like nightfall-ridges' layers), per-frame CanvasGradient creation (cache keyed by quantized color/geometry; ride per-frame alpha on globalAlpha). Quality governor (`render-quality.ts`) scales frame-local params — never mutate persistent lerp targets.
 - Review surface: `M` key opens the mood lab on localhost, or append `?lab=1` (also `?debug=1`). Dev: `npm run dev:productions` (port 8084, refreshes showcase.json); plain `dev` (8084) serves stale showcase data.
 
+## Purpose & Visual North Star
+
+The `/productions` explorer is an immersive concert-film substitute — a full-screen cinematic experience that makes recorded music feel alive. **Success = a first-time viewer, 10 seconds in, does not want to look away.** Visuals must feel organic (not generative-art demos), moody (not colorful/bright), and deeply section-aware (the visual arc matches the musical arc, not a looped animation).
+
+The section arc — not real-time audio analysis — owns the timing. `section_times` drive structural visual changes; `AudioSignal` (energy, bass/mids/highs, transient) is accent only. Every visual must pass the five-section arc test: section 1 and section 3 should feel like different scenes, not just different brightness.
+
+## Current Execution Priority
+
+1. **IMPROVEMENT MODE** — improve existing Three.js kernels before adding new ones (see `VISUAL_LEDGER.md` Improvement Candidates: `three-fresnel-core`, `three-flat-material`, `three-caustics`, `three-curl-flow`, `three-artwork-flux`)
+2. **Shared helpers next** — `createSectionEasing(role)` for musical transition curves; film-grain/vignette fullscreen utility (GLSL, no postprocessing lib)
+3. **New kernels in priority order** — light-only GPU scene → near-still volumetric outro → reaction-diffusion (Gray-Scott via ping-pong FBO) → GPU fluid advection (velocity field)
+
+**Highest-value underused techniques** (fill these gaps before adding more of what already exists):
+- Reaction-diffusion (Gray-Scott): ping-pong FBO already exists; produces the most organic textures possible — Turing patterns, cellular growth, erosion. Section-drivable via feed/kill params.
+- GPU fluid advection: velocity-field ping-pong drives particle trails like smoke/ink — far more organic than noise-driven motion.
+- Section easing curves: all kernels currently lerp linearly. Bezier/ease-in-out on section transitions would feel musical, not mechanical.
+- Film grain + vignette via GLSL: cinematic depth in ~5 fragment shader lines. No lib needed.
+
 ## Build & Deploy
 - `npm run dev` starts on port 8084
 - `npm run dev:productions` runs `fetch-tracks` then dev on 8084 (refreshes showcase data)

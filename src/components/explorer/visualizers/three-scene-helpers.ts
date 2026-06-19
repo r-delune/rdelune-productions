@@ -288,14 +288,21 @@ export const STD_UNIFORM_GLSL = /* glsl */ `
     return uBeatPhase >= 0.0 ? (1.0 + 0.18 * pow(1.0 - uBeatPhase, 3.0)) : 1.0;
   }
 
-  // 0.18 under the (padded) player panel, 1.0 elsewhere — keeps UI readable.
+  // Softly mute under the player panel, fading across the safety pad. Older
+  // Three sketches treated the padded area as a binary rectangle, which made
+  // the bottom-right player mask visible as a hard block.
   float exclusionMask(){
     if (uExclusionActive < 0.5) return 1.0;
     vec2 px = vec2(vUv.x * uResolution.x, (1.0 - vUv.y) * uResolution.y);
     float pad = 80.0;
-    float inside = step(uExclusion.x - pad, px.x) * step(px.x, uExclusion.y + pad)
-                 * step(uExclusion.z - pad, px.y) * step(px.y, uExclusion.w + pad);
-    return mix(1.0, 0.18, inside);
+    vec2 closest = clamp(px, uExclusion.xz, uExclusion.yw);
+    vec2 outside = px - closest;
+    float outsideDist = length(outside);
+    float inside = step(uExclusion.x, px.x) * step(px.x, uExclusion.y)
+                 * step(uExclusion.z, px.y) * step(px.y, uExclusion.w);
+    float outsideFalloff = 1.0 - smoothstep(0.0, pad, outsideDist);
+    float strength = max(inside * 0.68, outsideFalloff * 0.34);
+    return mix(1.0, 0.52, strength);
   }
 `;
 
