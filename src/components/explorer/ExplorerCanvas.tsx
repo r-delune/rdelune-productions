@@ -16,7 +16,7 @@ import type { ExclusionRect, VisualEvent, VisualParams, Visualizer } from './vis
 import { createVisualizer } from './visualizers/registry';
 import { preloadArtworkImage } from './artwork-cache';
 import { getProductionPlaybackMode } from './playback-capability';
-import { getQualityScale, reportFrame } from './render-quality';
+import { getQualityScale, getRenderQualityTelemetry, reportFrame } from './render-quality';
 
 export { getCardStyle } from './runtime/plans';
 
@@ -112,6 +112,21 @@ interface StageCueTint {
   duration: number;
   alpha: number;
 }
+
+interface ProductionsVisualSmokeTelemetry {
+  recipeId: string;
+  kernel: string;
+  sceneProfile: ExplorerSceneProfile;
+  frameCount: number;
+  frameEma: number;
+  fpsEstimate: number;
+  qualityScale: number;
+  targetFrameMs: number;
+}
+
+type WindowWithProductionsVisualSmoke = Window & {
+  __PRODUCTIONS_RENDER_QUALITY__?: ProductionsVisualSmokeTelemetry;
+};
 
 const SCENE_PROFILES: Readonly<Record<ExplorerSceneProfile, SceneProfile>> = {
   ink: {
@@ -1479,6 +1494,17 @@ export default function ExplorerCanvas({
   const shouldPrepareRuntime = initialSelectionReady && supportsRichVisualRuntime && stage.width > 0 && stage.height > 0;
   const { ready: q5Ready, failed } = useQ5({ enabled: visualRuntimeReady });
 
+  const publishVisualSmokeTelemetry = (stage: Stage, frameCount: number) => {
+    const telemetry = getRenderQualityTelemetry();
+    (window as WindowWithProductionsVisualSmoke).__PRODUCTIONS_RENDER_QUALITY__ = {
+      recipeId: stage.recipe.id,
+      kernel: stage.recipe.kernel,
+      sceneProfile: stage.recipe.sceneProfile,
+      frameCount,
+      ...telemetry,
+    };
+  };
+
   useEffect(() => {
     if (!shouldPrepareRuntime) {
       setVisualRuntimeReady(false);
@@ -1816,6 +1842,7 @@ export default function ExplorerCanvas({
     let dispatchedPlanEventIds = new Set<string>();
     const brokenRecipeIds = new Set<string>();
     const reportedStageErrors = new Set<string>();
+    let renderedFrameCount = 0;
 
     function destroyStage(stage: Stage | null): void {
       if (!stage) return;
@@ -2452,6 +2479,8 @@ export default function ExplorerCanvas({
       const qualityScale = getQualityScale();
       if (activeCompositeAlpha > 0.001) drawStageCueEffects(ctx, activeStage, width, height, colorPresence, qualityScale);
       ctx.globalAlpha = 1;
+      renderedFrameCount += 1;
+      publishVisualSmokeTelemetry(activeStage, renderedFrameCount);
 
       if (outgoingStage && transitionProgress >= 1) {
         destroyStage(outgoingStage);

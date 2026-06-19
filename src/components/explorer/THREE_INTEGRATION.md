@@ -131,7 +131,12 @@ Patterns that get the most out of the GPU within this architecture:
 | Raymarched volumetric fog | `three-volumetric-fog` | Atmosphere "fog sheets" + Texture "non-particle material" | ✅ shipped |
 | Shader water caustics | `three-caustics` | Water/Tide caustic | ✅ shipped |
 | Artwork texture feedback | `three-artwork-flux` | Texture/image-mangling accent | ✅ shipped |
-| Fresnel + bloom core form | — | Orbit/Core "quieter core forms" + Light "soft bloom" | open |
+| Fresnel + bloom core form | `three-fresnel-core` | Orbit/Core "quieter core forms" + Light "soft bloom" | ✅ shipped |
+| Procedural material surface | `three-flat-material` | Texture grain/erosion/cellular surface | ✅ shipped |
+| Light-only GPU scene | `three-light-rays` | Glints/rays/bloom without dense particles | ✅ shipped |
+| Near-still volumetric tableau | `three-sparse-veil` | Sparse Minimal outro/low-energy tableau | ✅ shipped |
+| Reaction-diffusion FBO sim | `three-reaction-diffusion` | Stateful organic Turing/cellular texture | ✅ shipped |
+| GPU fluid advection | — | Velocity-field smoke/ink trail material | open |
 
 ## Registration
 
@@ -156,7 +161,8 @@ Target what Canvas2D cannot do and which fills documented repertoire gaps, rathe
 - **GPU instanced flow-field** — 100k–500k instanced points on a curl-noise field, far past the CPU particle budget. Extends the lateral/landscape-current family at a density that reads as genuinely new.
 - **Raymarched volumetric fog / cloud** — true depth and light scattering in a fragment shader. Fills the Texture gap ("non-artwork material texture that is not another mosh or particle field") and the Atmosphere family at a quality Canvas2D fog cannot reach.
 - **Shader caustics / water surface** — fills the explicit Water/Tide caustic gap with refractive shimmer.
-- **Fresnel + bloom core form** — a quieter luminous orb with real rim light for the Orbit/Core "quieter core forms" gap.
+- **GPU fluid advection** — the next open GPU technique: ping-pong velocity/density fields that read as smoke or ink trails, not another noise-scroll material.
+- **Shared section easing + GLSL finish utilities** — cross-kernel upgrades that make existing Three scenes feel more musical and cinematic without adding new visual families.
 
 Each maps to one new recipe and one repertoire role. Add a clear family, not sketch sprawl.
 

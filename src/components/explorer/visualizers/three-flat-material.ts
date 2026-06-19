@@ -19,6 +19,7 @@ import {
   createFullscreenScene,
   createSectionProgress,
   createStandardUniforms,
+  GRAIN_GLSL,
   NOISE_GLSL,
   STD_UNIFORM_GLSL,
   type FullscreenScene,
@@ -34,6 +35,7 @@ const FRAGMENT_SHADER = /* glsl */ `
 
   ${STD_UNIFORM_GLSL}
   ${NOISE_GLSL}
+  ${GRAIN_GLSL}
 
   uniform float uLayers;
   uniform float uGrainScale;
@@ -144,6 +146,7 @@ const FRAGMENT_SHADER = /* glsl */ `
     col += uColorWarm * bands * reveal * (0.014 + lateOpen * 0.045);
     col *= 0.72 + vignette * 0.36;
     col = mix(uColorBg, col, exclusionMask());
+    col = applyGrainVignette(col, vUv, 0.045, 0.0);
 
     gl_FragColor = vec4(col, 1.0);
   }
@@ -159,9 +162,13 @@ function makeFlatMaterialScene(): ThreeScene {
   let pressureTarget = 0;
   let colorMorph = 0;
   let colorMorphTarget = 0;
-  // Per-section drift axis: rotates ~45° at each section boundary
+  // Per-section drift axis: target rotates ~45° at each section boundary,
+  // current lerps toward target over ~1.4 s so the shift feels like sediment
+  // reorienting under current rather than a hard cut.
   let driftDirX = 1;
   let driftDirY = 0;
+  let targetDriftDirX = 1;
+  let targetDriftDirY = 0;
   let prevSectionIdx = -1;
   const section = createSectionProgress();
 
@@ -193,6 +200,8 @@ function makeFlatMaterialScene(): ThreeScene {
       colorMorphTarget = 0;
       driftDirX = 1;
       driftDirY = 0;
+      targetDriftDirX = 1;
+      targetDriftDirY = 0;
       prevSectionIdx = -1;
       section.reset();
     },
@@ -207,18 +216,20 @@ function makeFlatMaterialScene(): ThreeScene {
       colorMorphTarget = Math.max(0, colorMorphTarget - dt * 0.5);
       section.update(dt);
 
-      // Rotate drift axis by ~50° at each section change
+      // Set target drift direction at each section change; lerp current toward it
       const sectionIdx = Math.floor(section.value * 4);
       if (sectionIdx !== prevSectionIdx && prevSectionIdx >= 0) {
         const rotAngle = (Math.PI / 4) * (1 + (sectionIdx % 2) * 0.6);
-        const cos = Math.cos(rotAngle);
-        const sin = Math.sin(rotAngle);
-        const nx = driftDirX * cos - driftDirY * sin;
-        const ny = driftDirX * sin + driftDirY * cos;
-        driftDirX = nx;
-        driftDirY = ny;
+        const cosA = Math.cos(rotAngle);
+        const sinA = Math.sin(rotAngle);
+        targetDriftDirX = targetDriftDirX * cosA - targetDriftDirY * sinA;
+        targetDriftDirY = targetDriftDirX * sinA + targetDriftDirY * cosA;
       }
       prevSectionIdx = sectionIdx;
+      // Lerp current toward target (~1.4 s time constant)
+      const driftDamp = 1 - Math.exp(-Math.max(0, dt) / 1.4);
+      driftDirX += (targetDriftDirX - driftDirX) * driftDamp;
+      driftDirY += (targetDriftDirY - driftDirY) * driftDamp;
 
       applyStandardUpdate(uniforms, dt, time, params, audio, exclusion, palette);
       uniforms.uSectionProgress.value = section.value;

@@ -20,6 +20,7 @@ import {
   createFullscreenScene,
   createSectionProgress,
   createStandardUniforms,
+  GRAIN_GLSL,
   NOISE_GLSL,
   STD_UNIFORM_GLSL,
   type FullscreenScene,
@@ -33,6 +34,7 @@ const FRAGMENT_SHADER = /* glsl */ `
 
   ${STD_UNIFORM_GLSL}
   ${NOISE_GLSL}
+  ${GRAIN_GLSL}
 
   uniform vec2  uLightPos;    // normalised screen position of light source
   uniform float uRayDensity;  // number of ray samples
@@ -104,6 +106,7 @@ const FRAGMENT_SHADER = /* glsl */ `
     col += uColorWarm * motes * moteBrightness;
 
     col = mix(uColorBg, col, exclusionMask());
+    col = applyGrainVignette(col, vUv, 0.025, 0.5);
     gl_FragColor = vec4(col, 1.0);
   }
 `;

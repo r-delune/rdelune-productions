@@ -23,6 +23,7 @@ import {
   createFullscreenScene,
   createSectionProgress,
   createStandardUniforms,
+  GRAIN_GLSL,
   NOISE_GLSL,
   STD_UNIFORM_GLSL,
   type FullscreenScene,
@@ -37,6 +38,7 @@ const FRAGMENT_SHADER = /* glsl */ `
 
   ${STD_UNIFORM_GLSL}
   ${NOISE_GLSL}
+  ${GRAIN_GLSL}
 
   // Extra per-sketch uniforms
   uniform float uCoreRadius;   // normalised radius of the SDF sphere
@@ -126,6 +128,7 @@ const FRAGMENT_SHADER = /* glsl */ `
     // Player panel exclusion: fade toward bg inside the UI rect
     float exMask = exclusionMask();
     col = mix(uColorBg, col, exMask);
+    col = applyGrainVignette(col, vUv, 0.03, 0.6);
 
     gl_FragColor = vec4(col, 1.0);
   }

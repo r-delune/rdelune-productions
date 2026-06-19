@@ -195,11 +195,16 @@ export function createCongContourLines(): Visualizer {
         ctx.stroke();
 
         if (sectionArc > 0.32 && near < 0.58 && index % 3 === 0) {
-          const glintCount = 1 + Math.floor(sectionArc * 3);
+          // Always iterate up to 4 glints; alpha per glint fades in smoothly so
+          // there are no discrete pops at the old Math.floor boundaries.
+          const maxGlints = 4;
           ctx.save();
           ctx.globalCompositeOperation = 'screen';
-          ctx.fillStyle = `rgba(${wr},${wg},${wb},${Math.min(0.018 + ridgeGlow * 0.06 + curAudio.highs * 0.035, 0.12)})`;
-          for (let glint = 0; glint < glintCount; glint += 1) {
+          for (let glint = 0; glint < maxGlints; glint += 1) {
+            const glintAlpha = Math.min(1, Math.max(0, sectionArc * 3 - glint));
+            if (glintAlpha <= 0) continue;
+            const baseGlintA = Math.min(0.018 + ridgeGlow * 0.06 + curAudio.highs * 0.035, 0.12) * glintAlpha;
+            ctx.fillStyle = `rgba(${wr},${wg},${wb},${baseGlintA})`;
             const frac = q.noise(band.seed, glint * 17.3, 4.1);
             const x = -40 + frac * (w + 80);
             const y = sampleY(x);

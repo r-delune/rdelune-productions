@@ -25,6 +25,7 @@ import {
   createFullscreenScene,
   createSectionProgress,
   createStandardUniforms,
+  GRAIN_GLSL,
   NOISE_GLSL,
   STD_UNIFORM_GLSL,
   type Uniforms,
@@ -37,6 +38,7 @@ const FRAGMENT_SHADER = /* glsl */ `
   varying vec2 vUv;
   ${STD_UNIFORM_GLSL}
   ${NOISE_GLSL}
+  ${GRAIN_GLSL}
 
   uniform float uSteps;
   uniform float uNoiseScale;
@@ -105,6 +107,7 @@ const FRAGMENT_SHADER = /* glsl */ `
 
     // Dim under the player panel for readability.
     col = mix(uColorBg, col, exclusionMask());
+    col = applyGrainVignette(col, vUv, 0.032, 0.62);
     gl_FragColor = vec4(col, 1.0);
   }
 `;

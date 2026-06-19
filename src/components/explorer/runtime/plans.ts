@@ -106,8 +106,6 @@ const ARCHIVED_RECIPE_REPLACEMENTS: Readonly<Record<string, ExplorerRecipeId>> =
   'cong-artwork-datamosh-left-flow': MOSH_BASE_RECIPE_ID,
   'cong-artwork-datamosh-storm-evolution': MOSH_BASE_RECIPE_ID,
   'cong-cloud-again-peak': 'cong-green-galaxy',
-  'cong-chord-storm': 'cong-green-galaxy',
-  'cong-grain-erosion': MOSH_BASE_RECIPE_ID,
 };
 
 function hashString(value: string): number {

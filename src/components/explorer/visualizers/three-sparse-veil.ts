@@ -21,6 +21,7 @@ import {
   createFullscreenScene,
   createSectionProgress,
   createStandardUniforms,
+  GRAIN_GLSL,
   NOISE_GLSL,
   STD_UNIFORM_GLSL,
   type FullscreenScene,
@@ -36,6 +37,7 @@ const FRAGMENT_SHADER = /* glsl */ `
 
   ${STD_UNIFORM_GLSL}
   ${NOISE_GLSL}
+  ${GRAIN_GLSL}
 
   uniform float uLayers;
   uniform float uNoiseScale;
@@ -70,8 +72,9 @@ const FRAGMENT_SHADER = /* glsl */ `
     float breathT = uTime * 0.042;  // ~4 s period breathing
 
     float mist = mistDensity(uv, scrollT);
-    // Slow ambient breath: gentle sine modulation
-    float breath = sin(breathT * 6.28) * uBreath;
+    // Irregular breathing: FM sine at a non-integer modulator ratio so the
+    // period is never perfectly repeated — feels like a living thing, not a metronome.
+    float breath = sin(breathT * 6.28 + 0.55 * sin(breathT * 1.73 + 0.9)) * uBreath;
     mist = clamp(mist + breath * 0.08, 0.0, 1.0);
 
     float beat = beatPulse();
@@ -90,6 +93,7 @@ const FRAGMENT_SHADER = /* glsl */ `
     col += uColorA * pow(mist, 2.0) * uRipple * (0.18 + uGlow * 0.12);
 
     col = mix(uColorBg, col, exclusionMask());
+    col = applyGrainVignette(col, vUv, 0.022, 0.48);
     gl_FragColor = vec4(col, 1.0);
   }
 `;

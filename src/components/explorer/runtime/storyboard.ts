@@ -11,6 +11,27 @@ import type {
   VisualStoryboard,
 } from './types';
 
+export const EXPLORER_SCENE_PROFILES: readonly ExplorerSceneProfile[] = [
+  'ink',
+  'smoke',
+  'tide',
+  'cloud',
+  'rain',
+  'flow',
+  'spiral',
+  'contour',
+  'planet',
+  'particle',
+  'galaxy',
+  'storm',
+  'mist',
+  'texture',
+  'line',
+  'grid',
+  'geology',
+  'sparse',
+];
+
 const TEMPLATE_ROLES: Readonly<Record<ExplorerStoryboardTemplate, readonly ExplorerStoryboardSectionRole[]>> = {
   'ambient-arc': ['intro', 'establish', 'drift', 'lift', 'release', 'afterglow'],
   'lift-arc': ['intro', 'establish', 'build', 'lift', 'peak', 'release', 'afterglow'],
@@ -21,20 +42,26 @@ const TEMPLATE_ROLES: Readonly<Record<ExplorerStoryboardTemplate, readonly Explo
   'generative-variety': ['intro', 'establish', 'drift', 'build', 'lift', 'peak', 'release', 'afterglow'],
 };
 
-const ROLE_PROFILE_ORDER: Readonly<Record<ExplorerStoryboardSectionRole, readonly ExplorerSceneProfile[]>> = {
-  intro:     ['texture', 'cloud', 'particle', 'ink', 'smoke', 'mist', 'tide', 'flow', 'contour', 'galaxy', 'line', 'grid', 'rain', 'storm', 'spiral', 'planet', 'geology', 'sparse'],
-  establish: ['texture', 'cloud', 'particle', 'smoke', 'mist', 'flow', 'galaxy', 'ink', 'tide', 'contour', 'line', 'grid', 'rain', 'storm', 'spiral', 'planet', 'geology', 'sparse'],
-  drift:     ['particle', 'sparse', 'texture', 'geology', 'ink', 'smoke', 'mist', 'flow', 'cloud', 'line', 'galaxy', 'tide', 'contour', 'rain', 'storm', 'spiral', 'planet', 'grid'],
-  build:     ['flow', 'texture', 'particle', 'rain', 'storm', 'spiral', 'galaxy', 'contour', 'cloud', 'tide', 'grid', 'smoke', 'mist', 'ink', 'line', 'planet', 'geology', 'sparse'],
-  lift:      ['texture', 'rain', 'storm', 'flow', 'particle', 'tide', 'spiral', 'galaxy', 'cloud', 'contour', 'ink', 'grid', 'smoke', 'mist', 'line', 'planet', 'geology', 'sparse'],
-  peak:      ['texture', 'planet', 'storm', 'spiral', 'rain', 'galaxy', 'particle', 'contour', 'grid', 'flow', 'cloud', 'tide', 'smoke', 'mist', 'ink', 'line', 'geology', 'sparse'],
-  release:   ['texture', 'sparse', 'contour', 'geology', 'tide', 'particle', 'smoke', 'mist', 'cloud', 'ink', 'line', 'flow', 'galaxy', 'rain', 'storm', 'spiral', 'planet', 'grid'],
-  afterglow: ['texture', 'sparse', 'cloud', 'geology', 'galaxy', 'particle', 'tide', 'smoke', 'mist', 'ink', 'contour', 'line', 'flow', 'rain', 'storm', 'spiral', 'planet', 'grid'],
+export const ROLE_PROFILE_ORDER: Readonly<Record<ExplorerStoryboardSectionRole, readonly ExplorerSceneProfile[]>> = {
+  intro:     ['texture', 'cloud', 'particle', 'ink', 'smoke', 'mist', 'tide', 'flow', 'contour', 'galaxy', 'grid', 'rain', 'storm', 'spiral', 'planet', 'geology', 'sparse'],
+  establish: ['texture', 'cloud', 'particle', 'smoke', 'mist', 'flow', 'galaxy', 'ink', 'tide', 'contour', 'grid', 'rain', 'storm', 'spiral', 'planet', 'geology', 'sparse'],
+  drift:     ['particle', 'sparse', 'texture', 'geology', 'ink', 'smoke', 'mist', 'flow', 'cloud', 'galaxy', 'tide', 'contour', 'rain', 'storm', 'spiral', 'planet', 'grid'],
+  build:     ['flow', 'texture', 'particle', 'rain', 'storm', 'spiral', 'galaxy', 'contour', 'cloud', 'tide', 'grid', 'smoke', 'mist', 'ink', 'planet', 'geology', 'sparse'],
+  lift:      ['texture', 'rain', 'storm', 'flow', 'particle', 'tide', 'spiral', 'galaxy', 'cloud', 'contour', 'ink', 'grid', 'smoke', 'mist', 'planet', 'geology', 'sparse'],
+  peak:      ['texture', 'planet', 'storm', 'spiral', 'rain', 'galaxy', 'particle', 'contour', 'grid', 'flow', 'cloud', 'tide', 'smoke', 'mist', 'ink', 'geology', 'sparse'],
+  release:   ['texture', 'sparse', 'contour', 'geology', 'tide', 'particle', 'smoke', 'mist', 'cloud', 'ink', 'flow', 'galaxy', 'rain', 'storm', 'spiral', 'planet', 'grid'],
+  afterglow: ['texture', 'sparse', 'cloud', 'geology', 'galaxy', 'particle', 'tide', 'smoke', 'mist', 'ink', 'contour', 'flow', 'rain', 'storm', 'spiral', 'planet', 'grid'],
 };
 
-const LOW_ENERGY_PROFILES: readonly ExplorerSceneProfile[] = ['texture', 'sparse', 'cloud', 'particle', 'smoke', 'mist', 'tide', 'ink', 'line', 'contour', 'galaxy', 'flow', 'grid', 'rain', 'storm', 'spiral', 'planet'];
-const MEDIUM_ENERGY_PROFILES: readonly ExplorerSceneProfile[] = ['texture', 'particle', 'sparse', 'cloud', 'flow', 'galaxy', 'tide', 'contour', 'smoke', 'mist', 'ink', 'grid', 'line', 'rain', 'storm', 'spiral', 'planet'];
-const HIGH_ENERGY_PROFILES: readonly ExplorerSceneProfile[] = ['texture', 'storm', 'flow', 'rain', 'particle', 'spiral', 'planet', 'galaxy', 'grid', 'contour', 'cloud', 'tide', 'smoke', 'mist', 'ink', 'line', 'sparse'];
+const LOW_ENERGY_PROFILES: readonly ExplorerSceneProfile[] = ['texture', 'sparse', 'cloud', 'particle', 'smoke', 'mist', 'tide', 'ink', 'contour', 'galaxy', 'flow', 'grid', 'rain', 'storm', 'spiral', 'planet'];
+const MEDIUM_ENERGY_PROFILES: readonly ExplorerSceneProfile[] = ['texture', 'particle', 'sparse', 'cloud', 'flow', 'galaxy', 'tide', 'contour', 'smoke', 'mist', 'ink', 'grid', 'rain', 'storm', 'spiral', 'planet'];
+const HIGH_ENERGY_PROFILES: readonly ExplorerSceneProfile[] = ['texture', 'storm', 'flow', 'rain', 'particle', 'spiral', 'planet', 'galaxy', 'grid', 'contour', 'cloud', 'tide', 'smoke', 'mist', 'ink', 'sparse'];
+
+export const STORYBOARD_ENERGY_PROFILE_ORDER: Readonly<Record<ExplorerStoryboardEnergy, readonly ExplorerSceneProfile[]>> = {
+  low: LOW_ENERGY_PROFILES,
+  medium: MEDIUM_ENERGY_PROFILES,
+  high: HIGH_ENERGY_PROFILES,
+};
 
 function hashString(value: string): number {
   let hash = 2166136261;
@@ -136,13 +163,13 @@ function getCloudAgainRoleCandidates(role: ExplorerStoryboardSectionRole, storyb
 // ordered from most preferred to fallback. pickCandidate() selects
 // deterministically per track and avoids repeating the previous section.
 const MOSH_ROLE_POOLS: Readonly<Record<ExplorerStoryboardSectionRole, readonly ExplorerRecipeId[]>> = {
-  intro:     ['cong-artwork-mosh-veil-drift', 'cong-vertical-datamosh', 'cong-artwork-mosh-minimal-ghost'],
-  establish: ['cong-vertical-datamosh', 'cong-artwork-mosh-left-flow', 'cong-artwork-mosh-soft-scan'],
+  intro:     ['cong-artwork-mosh-veil-drift', 'cong-artwork-mosh-minimal-ghost', 'cong-artwork-mosh-soft-scan'],
+  establish: ['cong-artwork-mosh-left-flow', 'cong-artwork-mosh-soft-scan', 'cong-artwork-mosh-slit-scan'],
   drift:     ['cong-artwork-mosh-minimal-ghost', 'cong-artwork-mosh-veil-drift', 'cong-artwork-mosh-soft-scan'],
-  build:     ['cong-artwork-datamosh-rain-evolution', 'cong-artwork-mosh-pixel-sort', 'cong-vertical-datamosh', 'cong-artwork-mosh-left-flow'],
-  lift:      ['cong-vertical-datamosh', 'cong-artwork-mosh-slit-scan', 'cong-artwork-mosh-storm-open', 'cong-artwork-datamosh-rain-evolution'],
-  peak:      ['cong-artwork-mosh-fracture', 'cong-artwork-mosh-pixel-sort', 'cong-vertical-datamosh', 'cong-artwork-mosh-storm-open'],
-  release:   ['cong-vertical-datamosh', 'cong-artwork-mosh-slit-scan', 'cong-artwork-datamosh-rain-evolution', 'cong-artwork-mosh-pixel-islands'],
+  build:     ['cong-artwork-datamosh-rain-evolution', 'cong-artwork-mosh-pixel-sort', 'cong-artwork-mosh-left-flow', 'cong-artwork-mosh-storm-open'],
+  lift:      ['cong-artwork-mosh-slit-scan', 'cong-artwork-mosh-storm-open', 'cong-artwork-datamosh-rain-evolution', 'cong-artwork-mosh-pixel-sort'],
+  peak:      ['cong-artwork-mosh-fracture', 'cong-artwork-mosh-pixel-sort', 'cong-artwork-mosh-storm-open', 'cong-artwork-datamosh-rain-evolution'],
+  release:   ['cong-artwork-mosh-slit-scan', 'cong-artwork-datamosh-rain-evolution', 'cong-artwork-mosh-pixel-islands', 'cong-artwork-mosh-left-flow'],
   afterglow: ['cong-artwork-mosh-soft-scan', 'cong-artwork-mosh-veil-drift', 'cong-artwork-mosh-minimal-ghost'],
 };
 

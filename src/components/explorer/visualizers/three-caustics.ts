@@ -24,6 +24,7 @@ import {
   createFullscreenScene,
   createSectionProgress,
   createStandardUniforms,
+  GRAIN_GLSL,
   NOISE_GLSL,
   STD_UNIFORM_GLSL,
   type Uniforms,
@@ -36,6 +37,7 @@ const FRAGMENT_SHADER = /* glsl */ `
   varying vec2 vUv;
   ${STD_UNIFORM_GLSL}
   ${NOISE_GLSL}
+  ${GRAIN_GLSL}
 
   uniform float uLayers;
   uniform float uNoiseScale;
@@ -60,12 +62,17 @@ const FRAGMENT_SHADER = /* glsl */ `
     p += uLightDir * uNoiseScale * 0.38;
 
     // Refractive warp from a slow second field; eased shimmer/level only.
+    // A slow time-rotating matrix on the raw warp breaks x/y independence so the
+    // refractive field flows directionally instead of producing grid-aligned plaid.
     float warpAmt = uWarpAmount * (1.0 + uShimmer * 0.5 + uLevel * 0.3);
-    vec2 warp = vec2(
+    vec2 rawWarp = vec2(
       snoise(vec3(p + 1.7, t * 0.6)),
       snoise(vec3(p * 1.1 - 4.3, t * 0.6))
     );
-    p += warp * warpAmt;
+    float wa = uTime * 0.022;
+    float wc = cos(wa), ws = sin(wa);
+    vec2 warp = vec2(rawWarp.x * wc - rawWarp.y * ws, rawWarp.x * ws + rawWarp.y * wc) * warpAmt;
+    p += warp;
 
     // Ridged layers → caustic web. Sharpens gradually over song sections.
     float sharpness = uSharpness * (1.0 + uSectionProgress * 0.6);
@@ -108,6 +115,7 @@ const FRAGMENT_SHADER = /* glsl */ `
     col += uColorWarm * glint * uGlowGain;
 
     col = mix(uColorBg, col, exclusionMask());
+    col = applyGrainVignette(col, vUv, 0.038, 0.55);
     gl_FragColor = vec4(col, 1.0);
   }
 `;

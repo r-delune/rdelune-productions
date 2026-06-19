@@ -79,12 +79,12 @@ Rotate GPU techniques so the repertoire does not become only fullscreen fragment
 | Fullscreen shader material | + | `three-caustics` | Avoid duplicate caustic/noise demos |
 | Raymarch / volumetric | + | `three-volumetric-fog` | Near-still outro tableau |
 | Instanced field | + | `three-curl-flow` | Only add if the scene role differs clearly |
-| Ping-pong FBO feedback | + | `three-artwork-flux` | Reaction surface still open if a stateful material is needed |
+| Ping-pong FBO feedback | + | `three-artwork-flux`, `three-reaction-diffusion` | Fluid advection still open if a second stateful material is needed |
 | Artwork texture sampling | + | `three-artwork-flux` | Keep accent-only; never opener |
 | Fresnel / SDF / core form | + | `three-fresnel-core` | — |
-| Light-only GPU scene | ! | — | Glints/rays/bloom without dense particles |
-| Reaction-diffusion (Gray-Scott) | ! | — | **Highest-priority new technique** — organic Turing/cellular/erosion patterns via ping-pong FBO; more organic than any existing texture |
-| GPU fluid advection | ! | — | Velocity-field ping-pong; drives particle trails like smoke/ink; far more organic than noise-driven motion |
+| Light-only GPU scene | + | `three-light-rays` | — |
+| Reaction-diffusion (Gray-Scott) | + | `three-reaction-diffusion` | Continue tuning against flat material/fog overlap |
+| GPU fluid advection | ! | — | **Highest-priority new technique** — velocity-field ping-pong; drives particle trails like smoke/ink; far more organic than noise-driven motion |
 | Section easing curves (shared helper) | ! | — | All kernels lerp linearly to section progress; a `createSectionEasing(role)` helper would make all transitions feel musical |
 | Film grain / vignette utility (shared) | ! | — | ~5 GLSL lines; cinematic depth uplift across all Three kernels; build once, import everywhere |
 
@@ -98,7 +98,14 @@ Seeded from `VISUAL_REPERTOIRE.md` declared gaps + "Next Batch". Prefer Three-fi
 2. ~~**Flat material texture**~~ — ✅ shipped as `three-flat-material` (2026-06-19)
 3. ~~**Light-only recipe**~~ — ✅ shipped as `three-light-rays` (2026-06-19)
 4. ~~**Near-still volumetric tableau**~~ — ✅ shipped as `three-sparse-veil` (2026-06-19)
-5. **Legacy Canvas2D maintenance** — `cong-grid-pulse` only when the cycle is explicitly maintenance.
+5. ~~**Reaction-diffusion surface**~~ — ✅ shipped as `three-reaction-diffusion` (2026-06-19)
+
+Next foundation/tech priorities:
+
+1. **GPU fluid advection** — velocity-field ping-pong for smoke/ink trails.
+2. **Shared section easing curves** — musical role-based easing helper for all kernels.
+3. **Shared GLSL film grain/vignette utility** — one importable cinematic finish for Three kernels.
+4. **Legacy Canvas2D maintenance** — `cong-grid-pulse` only when the cycle is explicitly maintenance.
 
 Creative-prototype track (from `VISUAL_REPERTOIRE.md` New Sketch Baseline, building off `cong-lateral-current`):
 `cong-symmetry-particles` → recursive/tree growth → snowflake field → Mandelbrot/Julia (once perf & AA are clear).
@@ -112,21 +119,7 @@ Running list of existing sketches worth a better version. Add to this whenever y
 
 All five Three.js improvement candidates cleared 2026-06-19. See Worklog.
 
-### Retirement candidates (fail World/Ecosystem Test — no spatial metaphor)
-
-### Retirement candidates (fail World/Ecosystem Test — no spatial metaphor)
-
-These kernels read as abstract visualizers rather than worlds. Prefer retiring over improving if the GPU technique is covered elsewhere.
-
-- **`native-lissajous`** — mathematical Lissajous curves = explicit visualizer pattern. No world presence. Retire unless it can be reframed as a specific spatial metaphor (e.g. "orbital paths of a binary star system").
-- **`cong-chromatic-ring`** — concentric ring pulse = classic WMP visualizer. No spatial depth. Retire or rework as a planetary atmosphere / ripple-in-water metaphor with clear foreground/background.
-- **`native-kaleido-fold`** — kaleidoscope = pattern, not place. Retire unless it can be reframed as a crystalline geological structure or frost formation with depth planes.
-- **`cong-colour-vortex`** — abstract color vortex with no world reference. Retire or rework as a weather event (waterspout, dust devil) with directional motion and depth.
-
-### Entrance arc fixes (uniform-density kernels)
-
-- **`three-curl-flow`** · Priority: HIGH — add entrance arc (section 1: ~10% of max count entering from below; sections 2–4: count climbs; section 5: disperses). The school-of-fish/murmuration world-presence is already strong; the missing arc is the main failure.
-- **`three-fresnel-core`** · (already in candidates above) — add emergence: start as a distant point of light, expand to full sphere by section 2; orbiting secondary form from section 3.
+All retirement candidates cleared 2026-06-19. See Worklog.
 
 Look for additional candidates: sketches that read denser-than-deep, weak/absent five-section arcs, per-frame allocation or noise-cost hotspots, gradients/`fillStyle` churn, aesthetic drift (mechanical motion, diagrammatic geometry, off-tone color), or anything that blanks under reduced motion.
 
@@ -157,6 +150,11 @@ Look for additional candidates: sketches that read denser-than-deep, weak/absent
 
 Newest first. Format: `YYYY-MM-DD · new|improvement · <recipe/kernel> · <one-line outcome>`.
 
+- 2026-06-19 · improvement · `smoke-planes` · Section arc / Colour & mood: per-phase hue offset (cool → warm at peak → cool exhale), dot-size growth toward peak, speed multiplier per section; all lerp smoothly over ~1.4 s.
+- 2026-06-19 · new · `cong-green-galaxy-orbit` · added recipe wiring the orphaned `cong-green-galaxy` kernel into rotation; fills Galaxy/Orbit via distinct orbital-particle implementation.
+- 2026-06-19 · foundation · visual system checks · added profile/storyboard reachability validation and browser smoke-test coverage for visual regressions.
+- 2026-06-19 · new · `three-reaction-diffusion` · Gray-Scott ping-pong FBO material surface; fills stateful organic texture technique.
+- 2026-06-19 · removal · 6 kernels · deleted `cong-particle-current`, `cong-artwork-particle-mangle`, `native-lissajous`, `cong-chromatic-ring`, `cong-colour-vortex`, `native-kaleido-fold`; fixed storyboard `cong-vertical-datamosh` phantom; pruned `ARCHIVED_RECIPE_REPLACEMENTS`; removed orphan `'line'` from all scene profile arrays.
 - 2026-06-19 · new · `three-light-rays` · fullscreen god-ray + mote shader; fills Light family gap; startupEligible, section-sweeping light source, `color-morph` event.
 - 2026-06-19 · new · `three-sparse-veil` · near-still volumetric mist for outros/low-energy; fills Sparse Minimal; near-zero drift in sections 1–2, gentle exhale in 3+.
 - 2026-06-19 · improvement · `three-fresnel-core` · added orbiting secondary ring (section 2+), directed core drift, `color-morph` chromatic shift.

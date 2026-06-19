@@ -28,6 +28,7 @@ import {
   type ProductionsVisualSettings,
 } from './production-settings';
 import { recipeIsDisabled, useProductionVisualPlan } from './useProductionVisualPlan';
+import { getExplorerRecipe } from './runtime/recipes';
 
 interface Props {
   initialAlbums?: Album[];
@@ -142,7 +143,16 @@ function debugLabEnabled(): boolean {
   if (typeof window === 'undefined') return false;
   if (process.env.NODE_ENV === 'production') return false;
   const params = new URLSearchParams(window.location.search);
-  return params.get('debug') === '1' || params.get('lab') === '1';
+  return params.get('debug') === '1' || params.get('lab') === '1' || !!params.get('recipe');
+}
+
+function readReviewRecipeParam(): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  if (process.env.NODE_ENV === 'production') return undefined;
+
+  const recipeId = new URLSearchParams(window.location.search).get('recipe')?.trim();
+  if (!recipeId || recipeIsDisabled(recipeId)) return undefined;
+  return getExplorerRecipe(recipeId).id === recipeId ? recipeId : undefined;
 }
 
 function getDailyRotationSeed(date = new Date()): string {
@@ -203,6 +213,7 @@ export default function ExplorerShell({ initialAlbums }: Props) {
   const [sectionMoodOverrides, setSectionMoodOverrides] = useState<Record<string, SectionMoodOverride>>({});
   const [visualSettings, setVisualSettings] = useState<ProductionsVisualSettings>(DEFAULT_PRODUCTIONS_VISUAL_SETTINGS);
   const [automaticRecipeId, setAutomaticRecipeId] = useState(() => pickAutomaticSketch(DEFAULT_AUTOMATIC_SKETCH_DECK));
+  const [requestedReviewRecipeId, setRequestedReviewRecipeId] = useState<string | undefined>(undefined);
   const [initialSelectionReady, setInitialSelectionReady] = useState(seedAlbums.length === 0);
   const audioSignalRef = useRef(createAudioSignal());
   const hasInitializedAlbumRef = useRef(false);
@@ -214,8 +225,10 @@ export default function ExplorerShell({ initialAlbums }: Props) {
 
   useEffect(() => {
     const enabled = debugLabEnabled();
+    const requestedRecipeId = readReviewRecipeParam();
     const savedVisualSettings = readProductionsVisualSettings();
     setShowMoodLab(enabled);
+    setRequestedReviewRecipeId(requestedRecipeId);
     setRandomMode(readSavedRandomMode());
     setVisualSettings(savedVisualSettings);
     setAutomaticRecipeId(pickAutomaticSketch(savedVisualSettings.automaticSketchDeck));
@@ -460,8 +473,24 @@ export default function ExplorerShell({ initialAlbums }: Props) {
   });
   const { cardBg, cardBorder } = currentRecipe;
 
+  useEffect(() => {
+    if (!showMoodLab || !requestedReviewRecipeId) return;
+    setSectionMoodOverrides((current) => {
+      if (current[moodTrackOverrideKey]?.recipeId === requestedReviewRecipeId) return current;
+      return {
+        ...current,
+        [moodTrackOverrideKey]: { recipeId: requestedReviewRecipeId },
+      };
+    });
+  }, [moodTrackOverrideKey, requestedReviewRecipeId, showMoodLab]);
+
   return (
-    <div data-productions-theme="dark" className="contents">
+    <div
+      data-productions-theme="dark"
+      data-current-recipe-id={reviewRecipeId ?? currentRecipe.id}
+      data-render-quality-source="getRenderQualityTelemetry"
+      className="contents"
+    >
       <ExplorerCanvas
         albumName={albumName}
         trackTitle={trackTitle}

@@ -98,17 +98,6 @@ export interface CongLandscapeSpiralTuning {
   pulseAlpha: number;
 }
 
-export interface CongParticleCurrentTuning {
-  kernel: 'cong-particle-current';
-  particleCount: number;
-  flowScale: number;
-  speed: number;
-  driftX: number;
-  trailAlpha: number;
-  accentAlpha: number;
-  maxBursts: number;
-}
-
 export interface CongLateralCurrentTuning {
   kernel: 'cong-lateral-current';
   particleCount: number;
@@ -307,21 +296,6 @@ export interface CongArtworkDatamoshTuning {
   stormArtworkColorMix?: number;
 }
 
-export interface CongArtworkParticleMangleTuning {
-  kernel: 'cong-artwork-particle-mangle';
-  sampleWidth: number;
-  sampleHeight: number;
-  particleCount: number;
-  particleSize: number;
-  feedbackAlpha: number;
-  scatter: number;
-  shear: number;
-  vortex: number;
-  blockTearCount: number;
-  sectionEvolution: number;
-  transientScatter: number;
-}
-
 export interface CongBatcapeGridTuning {
   kernel: 'cong-batcape-grid';
   gridSize: number;       // default 35, matches original batcape() gridSize
@@ -381,16 +355,6 @@ export interface CongGenerativeParticlesTuning {
   coverageGrowthSeconds?: number;
   coverageCueBoost?: number;
   verticalPullStrength?: number;
-}
-
-export interface NativeKaleidoFoldTuning {
-  kernel: 'native-kaleido-fold';
-  foldCount: number;
-  foldDriftSpeed: number;
-  wedgeParticleCount: number;
-  seamGlow: number;
-  centerVeil: number;
-  bufferScale: number;
 }
 
 export interface NativeReactionVeilTuning {
@@ -527,6 +491,13 @@ export interface ThreeSparseVeilTuning {
   breathAmplitude: number; // slow ambient breathing amplitude
 }
 
+export interface ThreeReactionDiffusionTuning {
+  kernel: 'three-reaction-diffusion';
+  diffusionA: number;  // diffusion rate of species A (typically ~1.0)
+  diffusionB: number;  // diffusion rate of species B (typically ~0.5)
+  contrast: number;    // display contrast — sharpness of B→colour mapping
+}
+
 export type VisualizerTuningConfig =
   | CongCloudOrbitTuning
   | CongRainShowerTuning
@@ -534,7 +505,6 @@ export type VisualizerTuningConfig =
   | CongPlanetCoreTuning
   | CongLandscapeFlowTuning
   | CongLandscapeSpiralTuning
-  | CongParticleCurrentTuning
   | CongLateralCurrentTuning
   | CongGreenGalaxyTuning
   | CongGenerativeParticlesTuning
@@ -545,9 +515,7 @@ export type VisualizerTuningConfig =
   | CongBrokenGridTuning
   | CongEmberGeologyTuning
   | CongArtworkDatamoshTuning
-  | CongArtworkParticleMangleTuning
   | CongBatcapeGridTuning
-  | NativeKaleidoFoldTuning
   | NativeReactionVeilTuning
   | NativeAttractorDriftTuning
   | NativeAuroraVeilTuning
@@ -560,7 +528,8 @@ export type VisualizerTuningConfig =
   | ThreeFresnelCoreTuning
   | ThreeFlatMaterialTuning
   | ThreeLightRaysTuning
-  | ThreeSparseVeilTuning;
+  | ThreeSparseVeilTuning
+  | ThreeReactionDiffusionTuning;
 
 export const VISUALIZER_TUNINGS = {
   'cong-cloud-orbit-default': {
@@ -648,16 +617,6 @@ export const VISUALIZER_TUNINGS = {
     innerAlpha: 0.16,
     baseFillAlpha: 0.03,
     pulseAlpha: 0,
-  },
-  'cong-particle-current-default': {
-    kernel: 'cong-particle-current',
-    particleCount: 760,
-    flowScale: 0.0028,
-    speed: 0.82,
-    driftX: 18,
-    trailAlpha: 0.045,
-    accentAlpha: 0.08,
-    maxBursts: 6,
   },
   'cong-lateral-current-default': {
     kernel: 'cong-lateral-current',
@@ -1642,38 +1601,6 @@ export const VISUALIZER_TUNINGS = {
     baseAlpha: 0.1,
     flickerSpeed: 1.2,
   },
-  'cong-artwork-particle-mangle-default': {
-    kernel: 'cong-artwork-particle-mangle',
-    sampleWidth: 220,
-    sampleHeight: 170,
-    particleCount: 5200,
-    particleSize: 2.2,
-    feedbackAlpha: 0.13,
-    scatter: 180,
-    shear: 90,
-    vortex: 0.72,
-    blockTearCount: 34,
-    sectionEvolution: 0.86,
-    transientScatter: 140,
-  },
-  'native-kaleido-fold-ambient': {
-    kernel: 'native-kaleido-fold',
-    foldCount: 5,
-    foldDriftSpeed: 0.045,
-    wedgeParticleCount: 96,
-    seamGlow: 0.34,
-    centerVeil: 0.6,
-    bufferScale: 0.62,
-  },
-  'native-kaleido-fold-bloom': {
-    kernel: 'native-kaleido-fold',
-    foldCount: 7,
-    foldDriftSpeed: 0.07,
-    wedgeParticleCount: 120,
-    seamGlow: 0.5,
-    centerVeil: 0.48,
-    bufferScale: 0.68,
-  },
   'native-reaction-veil-default': {
     kernel: 'native-reaction-veil',
     gridScale: 128,
@@ -1817,6 +1744,12 @@ export const VISUALIZER_TUNINGS = {
     scrollSpeed: 0.014,
     breathAmplitude: 0.6,
   },
+  'three-reaction-diffusion-default': {
+    kernel: 'three-reaction-diffusion',
+    diffusionA: 1.0,
+    diffusionB: 0.5,
+    contrast: 4.5,
+  },
 } as const;
 
 export type VisualizerTuningKey = keyof typeof VISUALIZER_TUNINGS;
@@ -1859,12 +1792,6 @@ export function resolveCongLandscapeSpiralTuning(tuning?: VisualizerTuningConfig
   return tuning?.kernel === 'cong-landscape-spiral'
     ? tuning
     : VISUALIZER_TUNINGS['cong-landscape-spiral-default'];
-}
-
-export function resolveCongParticleCurrentTuning(tuning?: VisualizerTuningConfig): CongParticleCurrentTuning {
-  return tuning?.kernel === 'cong-particle-current'
-    ? tuning
-    : VISUALIZER_TUNINGS['cong-particle-current-default'];
 }
 
 export function resolveCongLateralCurrentTuning(tuning?: VisualizerTuningConfig): CongLateralCurrentTuning {
@@ -1927,22 +1854,10 @@ export function resolveCongArtworkDatamoshTuning(tuning?: VisualizerTuningConfig
     : VISUALIZER_TUNINGS['cong-artwork-datamosh-default'];
 }
 
-export function resolveCongArtworkParticleMangleTuning(tuning?: VisualizerTuningConfig): CongArtworkParticleMangleTuning {
-  return tuning?.kernel === 'cong-artwork-particle-mangle'
-    ? tuning
-    : VISUALIZER_TUNINGS['cong-artwork-particle-mangle-default'];
-}
-
 export function resolveCongBatcapeGridTuning(tuning?: VisualizerTuningConfig): CongBatcapeGridTuning {
   return tuning?.kernel === 'cong-batcape-grid'
     ? tuning
     : VISUALIZER_TUNINGS['cong-batcape-grid-default'];
-}
-
-export function resolveNativeKaleidoFoldTuning(tuning?: VisualizerTuningConfig): NativeKaleidoFoldTuning {
-  return tuning?.kernel === 'native-kaleido-fold'
-    ? tuning
-    : VISUALIZER_TUNINGS['native-kaleido-fold-ambient'];
 }
 
 export function resolveNativeReactionVeilTuning(tuning?: VisualizerTuningConfig): NativeReactionVeilTuning {
@@ -2023,6 +1938,12 @@ export function resolveThreeSparseVeilTuning(tuning?: VisualizerTuningConfig): T
     : VISUALIZER_TUNINGS['three-sparse-veil-default'];
 }
 
+export function resolveThreeReactionDiffusionTuning(tuning?: VisualizerTuningConfig): ThreeReactionDiffusionTuning {
+  return tuning?.kernel === 'three-reaction-diffusion'
+    ? tuning
+    : VISUALIZER_TUNINGS['three-reaction-diffusion-default'];
+}
+
 export function describeVisualizerTuning(tuningKey?: VisualizerTuningKey): string {
   const tuning = getVisualizerTuning(tuningKey);
   if (!tuning) return '—';
@@ -2033,7 +1954,6 @@ export function describeVisualizerTuning(tuningKey?: VisualizerTuningKey): strin
   }
 
   if (tuning.kernel === 'cong-artwork-datamosh') return `${tuning.sliceCount} slices · ${tuning.sampleWidth}x${tuning.sampleHeight} sample`;
-  if (tuning.kernel === 'cong-artwork-particle-mangle') return `${tuning.particleCount} artwork particles · ${tuning.sampleWidth}x${tuning.sampleHeight} sample`;
   if ('particleCount' in tuning) return `${tuning.particleCount} particles`;
   if ('dropCount' in tuning) return `${tuning.dropCount} drops`;
   if ('bandCount' in tuning) return `${tuning.bandCount} bands`;

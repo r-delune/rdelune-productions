@@ -103,6 +103,35 @@ export function createPingPong(three: ThreeModule, w: number, h: number): PingPo
   };
 }
 
+/** Half-float ping-pong for simulation state that needs sub-byte precision. */
+export function createFloatPingPong(three: ThreeModule, w: number, h: number): PingPongTargets {
+  const makeTarget = () => new three.WebGLRenderTarget(Math.max(1, w), Math.max(1, h), {
+    depthBuffer: false,
+    stencilBuffer: false,
+    minFilter: three.NearestFilter,
+    magFilter: three.NearestFilter,
+    wrapS: three.ClampToEdgeWrapping,
+    wrapT: three.ClampToEdgeWrapping,
+    type: three.HalfFloatType,
+    format: three.RGBAFormat,
+  });
+
+  let read = makeTarget();
+  let write = makeTarget();
+  return {
+    get read() { return read; },
+    get write() { return write; },
+    resize(nextW: number, nextH: number) {
+      const rw = Math.max(1, nextW);
+      const rh = Math.max(1, nextH);
+      read.setSize(rw, rh);
+      write.setSize(rw, rh);
+    },
+    swap() { const tmp = read; read = write; write = tmp; },
+    dispose() { read.dispose(); write.dispose(); },
+  };
+}
+
 export interface InstancedField {
   geometry: import('three').BufferGeometry;
   positions: Float32Array;
@@ -306,6 +335,46 @@ export const STD_UNIFORM_GLSL = /* glsl */ `
   }
 `;
 
+/**
+ * Film grain + vignette utility. Append after STD_UNIFORM_GLSL in any sketch
+ * that wants cinematic depth. Requires no extra uniforms — uses uTime and
+ * uSectionProgress from the standard block.
+ *
+ * Call `applyGrainVignette(col, vUv, grainAmt, vignetteAmt)` at the end of
+ * main() before gl_FragColor. grainAmt ~0.03-0.06; vignetteAmt ~0.5-0.8.
+ * Both scale down under sections 0-1 so the intro doesn't open on noise.
+ */
+export const GRAIN_GLSL = /* glsl */ `
+  float hash21(vec2 p) {
+    p = fract(p * vec2(234.34, 435.345));
+    p += dot(p, p + 34.23);
+    return fract(p.x * p.y);
+  }
+
+  // Signed grain in [-1, 1], animated per frame so it never aliases to a
+  // static pattern. The floor(uTime * 24.0) quantises to ~24 fps so the grain
+  // feels filmic rather than digital shimmer.
+  float filmGrain(vec2 uv) {
+    float t = floor(uTime * 24.0);
+    return (hash21(uv * uResolution + t) * 2.0 - 1.0);
+  }
+
+  // Smooth radial darkening. strength=1 gives a moderate cinematic vignette.
+  float vignetteStrength(vec2 uv, float strength) {
+    float d = length(uv - 0.5) * 1.42;  // 1.42 ≈ corner distance
+    return mix(1.0, smoothstep(1.0, 0.0, d), strength);
+  }
+
+  // Apply both in one call. grainAmt ~0.03–0.06; vignetteAmt ~0.45–0.75.
+  // Both taper in sections 0-1 so the opener isn't gritty from frame zero.
+  vec3 applyGrainVignette(vec3 col, vec2 uv, float grainAmt, float vignetteAmt) {
+    float sectionEase = smoothstep(0.0, 0.35, uSectionProgress);
+    col += filmGrain(uv) * grainAmt * sectionEase;
+    col *= vignetteStrength(uv, vignetteAmt);
+    return col;
+  }
+`;
+
 const FULLSCREEN_VERTEX = /* glsl */ `
   varying vec2 vUv;
   void main(){
@@ -381,28 +450,43 @@ export function applyStandardUpdate(
   uniforms.uExclusionActive.value = hasExclusion ? 1 : 0;
 }
 
+// Per-section time constants (tau, seconds) for the section progress ratchet.
+// Tuned to the musical arc: intro/afterglow are slow and atmospheric; the
+// build→peak transition is the sharpest; release exhales quickly then settles.
+// Index = sectionIndex received in the section-cue event (0-based, clamped to 4).
+const SECTION_TAU: readonly number[] = [
+  5.5,  // section 0 → 1: slow atmospheric emergence
+  3.2,  // section 1 → 2: deliberate build
+  1.8,  // section 2 → 3: energetic snap to peak
+  2.4,  // section 3 → 4: quick release drop
+  4.8,  // section 4 → 5: long afterglow exhale
+];
+
 /**
  * Persistent section-progression ratchet shared by Three sketches. Driven by
  * `section-cue` events; the value rises over the song (never decays) and eases
- * smoothly toward each new target. Mirrors native-gravity-current's
- * sectionProgress. Feed events via handleEvent(), advance with update(dt), read
- * `.value` to set uSectionProgress.
+ * smoothly toward each new target using musically-tuned time constants per
+ * section boundary. Feed events via handleEvent(), advance with update(dt),
+ * read `.value` to set uSectionProgress.
  */
 export function createSectionProgress() {
   let value = 0;
   let target = 0;
   let cueCount = 0;
+  let tau = SECTION_TAU[0];
   return {
     get value() { return value; },
-    reset() { value = 0; target = 0; cueCount = 0; },
+    reset() { value = 0; target = 0; cueCount = 0; tau = SECTION_TAU[0]; },
     handleEvent(event: VisualEvent) {
       if (event.type === 'section-cue') {
-        cueCount = Math.max(cueCount + 1, event.sectionIndex ?? 0);
+        const idx = Math.max(cueCount, event.sectionIndex ?? 0);
+        cueCount = idx + 1;
         target = Math.min(1, cueCount / 5);
+        tau = SECTION_TAU[Math.min(idx, SECTION_TAU.length - 1)];
       }
     },
     update(dt: number) {
-      value += (target - value) * (1 - Math.exp(-Math.max(0, dt) / 4));
+      value += (target - value) * (1 - Math.exp(-Math.max(0, dt) / tau));
     },
   };
 }

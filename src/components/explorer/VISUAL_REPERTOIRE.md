@@ -156,12 +156,12 @@ Three opportunity: fresnel core or near-still volumetric tableaux can provide pr
 
 ## Next Batch
 
-Prioritize Three-first rendering structures over more particle presets:
+Prioritize new GPU behaviour and shared polish over more particle presets:
 
-1. **Fresnel bloom core**: restrained Three core form for sparse/focus/outro chapters.
-2. **Flat material texture**: Three grain/erosion/cellular surface distinct from volumetric fog.
-3. **Light-only recipe**: Three glints/ray/bloom scene that does not need dense particles.
-4. **Near-still volumetric tableau**: premium low-density ending for outros and low-energy tracks.
+1. **GPU fluid advection**: velocity-field ping-pong material for smoke/ink trails.
+2. **Shared section easing**: role-aware easing curves so section arcs feel more musical across all kernels.
+3. **Shared GLSL film grain/vignette**: one reusable finish for Three scenes.
+4. **Reaction-diffusion tuning**: keep `three-reaction-diffusion` distinct from `three-flat-material` and fog.
 5. Legacy maintenance candidates: `cong-grid-pulse`, `cong-horizon-field`, `cong-mist-noise`, `cong-wandering-lines` only when maintaining Canvas2D coverage.
 
 ## Rules

@@ -70,17 +70,24 @@ const FEEDBACK_SHADER = /* glsl */ `
     vec2 uv = vUv;
     float t = uTime * (0.045 + uDrift * 0.055);
     float structural = (uLevel * 0.35 + uSectionProgress * 0.45 + uFlux * 0.55) * uSectionAmp;
-    vec2 curl = vec2(
-      snoise(vec3(uv * 2.0, t)),
-      snoise(vec3(uv.yx * 2.3 + 17.0, t + 2.0))
-    );
+    // Coherent curl: two scalar potentials rotated together break x/y independence
+    // and eliminate the grid-aligned plaid artifact of separable noise.
+    float pot0 = snoise(vec3(uv * 2.0, t));
+    float pot1 = snoise(vec3(uv * 2.0 + 3.7, t + 1.1));
+    float rotA = uTime * 0.04;
+    float rc = cos(rotA), rs = sin(rotA);
+    vec2 curl = vec2(pot0 * rc - pot1 * rs, pot0 * rs + pot1 * rc);
     vec2 drift = curl * uDisplace * (0.004 + structural * 0.022);
-    vec2 smear = vec2(uTexel.x * (1.0 + uFlux * 7.0), 0.0);
+    // Asymmetric per-channel smear: R and B split at different angles so the
+    // chromatic fringe looks like optical glass aberration, not a "split RGB" filter.
+    float smearMag = uTexel.x * (1.0 + uFlux * 7.0);
+    vec2 smearR = vec2( smearMag,  smearMag * 0.4);
+    vec2 smearB = vec2(-smearMag * 0.85, smearMag * 0.6);
 
     vec3 prev = texture2D(uFeedback, clamp(uv + drift, 0.001, 0.999)).rgb;
-    vec3 artR = artworkSample(uv, drift + smear * uChromatic);
+    vec3 artR = artworkSample(uv, drift + smearR * uChromatic);
     vec3 artG = artworkSample(uv, drift);
-    vec3 artB = artworkSample(uv, drift - smear * uChromatic);
+    vec3 artB = artworkSample(uv, drift + smearB * uChromatic);
     vec3 art = vec3(artR.r, artG.g, artB.b);
 
     float reveal = clamp(uReveal + uSectionProgress * 0.22 + uLevel * 0.14, 0.0, 1.0);
@@ -125,6 +132,7 @@ function makeArtworkFluxScene(): ThreeScene {
   let feedbackUniforms: Uniforms | null = null;
   let pingPong: PingPongTargets | null = null;
   let artworkTexture: import('three').Texture | null = null;
+  let fallbackTexture: import('three').DataTexture | null = null;
 
   let tuning: ThreeArtworkFluxTuning = resolveThreeArtworkFluxTuning();
   let palette: Palette | null = null;
@@ -173,13 +181,15 @@ function makeArtworkFluxScene(): ThreeScene {
       updateTargetSize(args.w, args.h);
 
       pingPong = createPingPong(three, targetW, targetH);
+      fallbackTexture = new three.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, three.RGBAFormat);
+      fallbackTexture.needsUpdate = true;
       displayUniforms = createStandardUniforms(three, palette, args.w, args.h);
       feedbackUniforms = createStandardUniforms(three, palette, args.w, args.h);
 
       displayUniforms.uFrame = { value: pingPong.read.texture };
       displayUniforms.uVignette = { value: tuning.vignette };
       feedbackUniforms.uFeedback = { value: pingPong.read.texture };
-      feedbackUniforms.uArtwork = { value: pingPong.read.texture };
+      feedbackUniforms.uArtwork = { value: fallbackTexture };
       feedbackUniforms.uHasArtwork = { value: 0 };
       feedbackUniforms.uHasHistory = { value: 0 };
       feedbackUniforms.uArtworkAspect = { value: 1 };
@@ -279,12 +289,14 @@ function makeArtworkFluxScene(): ThreeScene {
 
     dispose() {
       artworkTexture?.dispose();
+      fallbackTexture?.dispose();
       pingPong?.dispose();
       feedbackGeometry?.dispose();
       feedbackMaterial?.dispose();
       displayGeometry?.dispose();
       displayMaterial?.dispose();
       artworkTexture = null;
+      fallbackTexture = null;
       pingPong = null;
       feedbackScene = null;
       feedbackCamera = null;
