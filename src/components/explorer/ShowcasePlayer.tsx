@@ -65,17 +65,6 @@ interface Props {
   disableAudio?: boolean;
 }
 
-interface BandRange {
-  start: number;
-  end: number;
-}
-
-interface FrequencyBands {
-  bass: BandRange;
-  mids: BandRange;
-  highs: BandRange;
-}
-
 interface ReviewAudioTelemetry {
   currentTime: number;
   duration: number;
@@ -99,22 +88,6 @@ function writeReviewAudioTelemetry(audio: HTMLAudioElement, event: string, error
     event,
     ...(error ? { error } : {}),
   };
-}
-
-type BrowserAudioContext = typeof AudioContext;
-
-interface WindowWithWebkitAudio extends Window {
-  webkitAudioContext?: BrowserAudioContext;
-}
-
-interface HTMLAudioElementWithCapture extends HTMLAudioElement {
-  captureStream?: () => MediaStream;
-  mozCaptureStream?: () => MediaStream;
-}
-
-interface AnalysisSource {
-  node: AudioNode;
-  connectAnalyserToOutput: boolean;
 }
 
 interface PlaybackTarget {
@@ -168,29 +141,9 @@ function normalizePlaybackRate(audio: HTMLAudioElement) {
   }
 }
 
-function averageBand(data: Uint8Array<ArrayBuffer>, range: BandRange): number {
-  let sum = 0;
-  let count = 0;
-
-  for (let i = range.start; i <= range.end; i++) {
-    sum += data[i];
-    count++;
-  }
-
-  return count > 0 ? sum / count / 255 : 0;
-}
-
 function shapeBand(value: number, floor: number, gain: number, exponent: number): number {
   const normalized = clamp01((value - floor) * gain);
   return Math.pow(normalized, exponent);
-}
-
-function createBandRange(sampleRate: number, fftSize: number, minHz: number, maxHz: number): BandRange {
-  const binCount = fftSize / 2;
-  const nyquist = sampleRate * 0.5;
-  const start = Math.max(1, Math.min(binCount - 1, Math.floor(minHz / nyquist * binCount)));
-  const end = Math.max(start, Math.min(binCount - 1, Math.ceil(maxHz / nyquist * binCount)));
-  return { start, end };
 }
 
 function InfoIcon() {
@@ -265,13 +218,6 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
   const albumIndexRef = useRef(albumIndex);
   const trackIndexRef = useRef(trackIndex);
   const randomModeRef = useRef(randomMode);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analysisSourceRef = useRef<AudioNode | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const timeDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
-  const freqDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
-  const prevFreqDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
-  const bandRangesRef = useRef<FrequencyBands | null>(null);
   const analysisFrameRef = useRef<number | null>(null);
   const startAnalysisLoopRef = useRef<() => void>(() => undefined);
   const stopAnalysisLoopRef = useRef<() => void>(() => undefined);
@@ -352,85 +298,13 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
     }
   }, [isDesktopViewport]);
 
-  const createAnalysisSource = useCallback((context: AudioContext, audio: HTMLAudioElement): AnalysisSource | null => {
-    const captureAudio = audio as HTMLAudioElementWithCapture;
-
-    try {
-      const stream = captureAudio.captureStream?.() ?? captureAudio.mozCaptureStream?.();
-      if (stream && stream.getAudioTracks().length > 0) {
-        return {
-          node: context.createMediaStreamSource(stream),
-          connectAnalyserToOutput: false,
-        };
-      }
-    } catch {
-      // captureStream unavailable or CORS-blocked.
-    }
-
-    // Do NOT fall back to createMediaElementSource — it hijacks the audio
-    // element's output routing through the Web Audio graph, which causes
-    // sample-rate changes that distort audio and interfere with other browser
-    // audio. If captureStream isn't available, skip analysis entirely.
-    return null;
-  }, []);
-
-  const ensureAudioAnalysis = useCallback(() => {
-    if (iosListeningMode) return;
-
-    const audio = audioRef.current;
-    if (!audio || analyserRef.current) return;
-
-    const AudioContextCtor = window.AudioContext || (window as WindowWithWebkitAudio).webkitAudioContext;
-    if (!AudioContextCtor) return;
-
-    try {
-      const context = new AudioContextCtor();
-      const analyser = context.createAnalyser();
-      analyser.fftSize = 1024;
-      analyser.minDecibels = -92;
-      analyser.maxDecibels = -12;
-      analyser.smoothingTimeConstant = 0.36;
-
-      const analysisSource = createAnalysisSource(context, audio);
-      if (!analysisSource) {
-        void context.close().catch(() => undefined);
-        return;
-      }
-
-      const { node: source } = analysisSource;
-      source.connect(analyser);
-
-      const binCount = analyser.frequencyBinCount;
-      audioContextRef.current = context;
-      analysisSourceRef.current = source;
-      analyserRef.current = analyser;
-      timeDataRef.current = new Uint8Array(analyser.fftSize);
-      freqDataRef.current = new Uint8Array(binCount);
-      prevFreqDataRef.current = new Uint8Array(binCount);
-      bandRangesRef.current = {
-        bass: createBandRange(context.sampleRate, analyser.fftSize, 24, 180),
-        mids: createBandRange(context.sampleRate, analyser.fftSize, 180, 2200),
-        highs: createBandRange(context.sampleRate, analyser.fftSize, 2200, 9000),
-      };
-    } catch {
-      analyserRef.current = null;
-    }
-  }, [createAnalysisSource, iosListeningMode]);
-
-  const resumeAudioAnalysis = useCallback(() => {
-    ensureAudioAnalysis();
-    const context = audioContextRef.current;
-    if (context?.state === 'suspended') {
-      void context.resume().catch(() => undefined);
-    }
-  }, [ensureAudioAnalysis]);
-
-  const suspendAudioAnalysis = useCallback(() => {
-    const context = audioContextRef.current;
-    if (context?.state === 'running') {
-      void context.suspend().catch(() => undefined);
-    }
-  }, []);
+  // Keep playback entirely on the HTMLMediaElement path. Creating an
+  // AudioContext, including for a captureStream-only analyser, can renegotiate
+  // the browser's shared audio-device sample rate and distort audio in other
+  // tabs. The analysis loop below deliberately uses its lightweight playback
+  // fallback signal instead.
+  const resumeAudioAnalysis = useCallback(() => undefined, []);
+  const suspendAudioAnalysis = useCallback(() => undefined, []);
 
   const resetAnalysisState = useCallback(() => {
     fluxBaselineRef.current = 0;
@@ -439,8 +313,6 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
     bandOnsetStateRef.current.highBaseline = 0;
     bandOnsetStateRef.current.lastBassOnsetAt = 0;
     bandOnsetStateRef.current.lastHighOnsetAt = 0;
-    const prevFreqData = prevFreqDataRef.current;
-    if (prevFreqData) prevFreqData.fill(0);
     resetAudioSignal(targetSignalRef.current);
     resetAudioSignal(audioSignalRef.current);
   }, [audioSignalRef]);
@@ -850,11 +722,6 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
         analysisFrameRef.current = window.requestAnimationFrame(updateAnalysis);
         return;
       }
-      const analyser = analyserRef.current;
-      const freqData = freqDataRef.current;
-      const prevFreqData = prevFreqDataRef.current;
-      const timeData = timeDataRef.current;
-      const bandRanges = bandRangesRef.current;
       const signal = sharedSignal;
       const target = targetSignalRef.current;
 
@@ -865,77 +732,7 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
 
       const isActive = !!audio.src && !audio.paused && !audio.ended && audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
 
-      if (analyser && freqData && prevFreqData && timeData && bandRanges && isActive) {
-        analyser.getByteTimeDomainData(timeData);
-        analyser.getByteFrequencyData(freqData);
-
-        let sumSquares = 0;
-        for (let i = 0; i < timeData.length; i++) {
-          const sample = (timeData[i] - 128) / 128;
-          sumSquares += sample * sample;
-        }
-
-        const rms = Math.sqrt(sumSquares / timeData.length);
-        const bassRaw = averageBand(freqData, bandRanges.bass);
-        const midsRaw = averageBand(freqData, bandRanges.mids);
-        const highsRaw = averageBand(freqData, bandRanges.highs);
-
-        let positiveFlux = 0;
-        let bassFlux = 0;
-        let highFlux = 0;
-        for (let i = 1; i < freqData.length; i++) {
-          const current = freqData[i] / 255;
-          const previous = prevFreqData[i] / 255;
-          if (current > previous) {
-            const delta = current - previous;
-            positiveFlux += delta;
-            if (i >= bandRanges.bass.start && i <= bandRanges.bass.end) bassFlux += delta;
-            else if (i >= bandRanges.highs.start && i <= bandRanges.highs.end) highFlux += delta;
-          }
-          prevFreqData[i] = freqData[i];
-        }
-        bassFlux /= Math.max(1, bandRanges.bass.end - bandRanges.bass.start + 1);
-        highFlux /= Math.max(1, bandRanges.highs.end - bandRanges.highs.start + 1);
-
-        const energyRaw = clamp01((rms - 0.01) * 3.6);
-        const flux = clamp01(positiveFlux / 5.6);
-        fluxBaselineRef.current += (flux - fluxBaselineRef.current) * Math.min(1, dt * 2.4);
-
-        const fluxExcite = Math.max(0, flux - (fluxBaselineRef.current * 1.08 + 0.008));
-        const peakBeforeDecay = peakEnvelopeRef.current;
-        peakEnvelopeRef.current = Math.max(peakEnvelopeRef.current * Math.exp(-dt * 2.8), energyRaw);
-        const peakExcite = Math.max(0, energyRaw - peakBeforeDecay * 0.82 - 0.018);
-
-        // Per-band onsets: fire when band flux exceeds its adaptive baseline by a
-        // multiplicative threshold, with a refractory hold per band.
-        const onsetState = bandOnsetStateRef.current;
-        const baselineBlend = Math.min(1, dt * 2.4);
-        onsetState.bassBaseline += (bassFlux - onsetState.bassBaseline) * baselineBlend;
-        onsetState.highBaseline += (highFlux - onsetState.highBaseline) * baselineBlend;
-        const bassExcess = bassFlux - (onsetState.bassBaseline * 1.35 + 0.012);
-        const highExcess = highFlux - (onsetState.highBaseline * 1.25 + 0.008);
-        let bassOnset = 0;
-        let highOnset = 0;
-        if (bassExcess > 0 && now - onsetState.lastBassOnsetAt >= 140) {
-          bassOnset = clamp01(bassExcess * 9);
-          onsetState.lastBassOnsetAt = now;
-        }
-        if (highExcess > 0 && now - onsetState.lastHighOnsetAt >= 90) {
-          highOnset = clamp01(highExcess * 11);
-          onsetState.lastHighOnsetAt = now;
-        }
-
-        target.bass = shapeBand(bassRaw, 0.025, 2.2, 0.8);
-        target.mids = shapeBand(midsRaw, 0.02, 1.9, 0.86);
-        target.highs = shapeBand(highsRaw, 0.012, 2.15, 0.8);
-        target.energy = clamp01(energyRaw * 0.72 + target.bass * 0.2 + target.mids * 0.16);
-        target.transient = clamp01(fluxExcite * (6.5 + target.highs * 2.6) + peakExcite * 4.8);
-        target.activity = clamp01(target.energy * 0.82 + target.transient * 0.18);
-        target.bassOnset = bassOnset;
-        target.highOnset = highOnset;
-        target.onsetStrength = Math.max(bassOnset, highOnset * 0.7);
-        target.playing = 1;
-      } else if (isActive) {
+      if (isActive) {
         const fallbackDuration = albumsRef.current[albumIndexRef.current]?.tracks[trackIndexRef.current]?.duration || audio.duration || 0;
         const progress = fallbackDuration > 0 ? clamp01(audio.currentTime / fallbackDuration) : 0;
         const pulse = 0.5 + Math.sin(audio.currentTime * 2.8 + progress * Math.PI * 2) * 0.5;
@@ -1030,26 +827,10 @@ export default function ShowcasePlayer({ albums, albumIndex, selectedTrackIndex,
       audio.removeEventListener('ratechange', handleRateChange);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
-      if (analysisSourceRef.current) {
-        analysisSourceRef.current.disconnect();
-        analysisSourceRef.current = null;
-      }
-      if (analyserRef.current) {
-        analyserRef.current.disconnect();
-        analyserRef.current = null;
-      }
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        void audioContextRef.current.close().catch(() => undefined);
-      }
-      audioContextRef.current = null;
-      bandRangesRef.current = null;
-      timeDataRef.current = null;
-      freqDataRef.current = null;
-      prevFreqDataRef.current = null;
       resetAudioSignal(cleanupTargetSignal);
       resetAudioSignal(sharedSignal);
     };
-  }, [audioSignalRef, disableAudio, ensureAudioAnalysis, getNextPlaybackTarget, iosListeningMode, onAlbumChange, onCurrentTimeChange, onPlaybackActiveChange, onProgressChange, playAudioTarget, releaseWakeLock, requestWakeLock, resetAnalysisState, setIsPlaying, stopAudioPlayback, suspendAudioAnalysis]);
+  }, [audioSignalRef, disableAudio, getNextPlaybackTarget, iosListeningMode, onAlbumChange, onCurrentTimeChange, onPlaybackActiveChange, onProgressChange, playAudioTarget, releaseWakeLock, requestWakeLock, resetAnalysisState, setIsPlaying, stopAudioPlayback, suspendAudioAnalysis]);
 
   useEffect(() => {
     if (disableAudio) return;

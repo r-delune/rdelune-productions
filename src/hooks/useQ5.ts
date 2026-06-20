@@ -56,6 +56,16 @@ function ensureQ5() {
 
   script.onload = () => {
     clearTimeout(timeout);
+    // q5's sound module creates a real AudioContext on every canvas pointerdown,
+    // which renegotiates the browser's shared audio session and distorts the
+    // HTML audio element (bass roll-off, high-pass artifacts). We don't use q5
+    // audio at all, so stub its audio state to 'running' so _startAudio() sees
+    // it as already live and never escalates to a real AudioContext.
+    const Q5 = (window as any).Q5;
+    if (Q5) {
+      Q5._offlineAudio = false;
+      Q5.aud = { state: 'running', resume: () => Promise.resolve(), close: () => Promise.resolve() };
+    }
     loaded = true;
     failed = false;
     notify(true, { clear: true });
