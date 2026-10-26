@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Continuum — liquid coherence field (prototype)</title>
+<style>
+  :root{
+    --ink:#e8e6df; --ink-dim:#9b9890; --line:rgba(255,255,255,.10);
+    --panel:rgba(10,12,18,.5); --accent:#e7b78a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#04050a;color:var(--ink);
+    font:13px/1.45 ui-sans-serif,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;overflow:hidden}
+  canvas#gl{display:block;position:fixed;inset:0;width:100%;height:100%}
+  .ui{position:fixed;left:0;right:0;pointer-events:none;z-index:5}
+  .ui > *{pointer-events:auto}
+  .top{top:0;display:flex;gap:14px;align-items:center;padding:14px 16px;
+    background:linear-gradient(#04050acc,transparent)}
+  .brand{font-weight:600;letter-spacing:.14em;text-transform:uppercase;font-size:11px}
+  .brand small{display:block;color:var(--ink-dim);letter-spacing:.04em;text-transform:none;font-weight:400}
+  .pill{display:inline-flex;gap:8px;align-items:center;background:var(--panel);
+    border:1px solid var(--line);border-radius:999px;padding:6px 12px;backdrop-filter:blur(8px)}
+  button{font:inherit;color:var(--ink);background:transparent;border:1px solid var(--line);
+    border-radius:8px;padding:6px 11px;cursor:pointer;transition:.15s}
+  button:hover{border-color:rgba(255,255,255,.32);background:rgba(255,255,255,.05)}
+  input[type=text]{font:inherit;color:var(--ink);background:transparent;border:none;width:120px;outline:none}
+  label.small{color:var(--ink-dim);font-size:11px}
+  .bottom{bottom:0;padding:14px 16px 18px;background:linear-gradient(transparent,#04050aee)}
+  .timeline{position:relative;height:44px;border:1px solid var(--line);border-radius:10px;
+    overflow:hidden;background:rgba(0,0,0,.25);cursor:pointer}
+  .seg{position:absolute;top:0;bottom:0;border-right:1px solid rgba(0,0,0,.4);
+    display:flex;flex-direction:column;justify-content:center;padding:0 8px;overflow:hidden;transition:filter .2s}
+  .seg:hover{filter:brightness(1.18)}
+  .seg b{font-size:10px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+  .seg span{font-size:9px;color:rgba(255,255,255,.72);white-space:nowrap}
+  .playhead{position:absolute;top:-3px;bottom:-3px;width:2px;background:#fff;box-shadow:0 0 10px #fff;pointer-events:none}
+  .transport{display:flex;gap:10px;align-items:center;margin-top:10px}
+  .spacer{flex:1}
+  .inspector{position:fixed;top:64px;right:16px;width:236px;z-index:5;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;padding:14px;backdrop-filter:blur(10px)}
+  .inspector h4{margin:0 0 10px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-dim)}
+  .row{display:flex;justify-content:space-between;gap:10px;padding:3px 0}
+  .row .k{color:var(--ink-dim)} .row .v{font-variant-numeric:tabular-nums;text-align:right}
+  .sw{display:flex;gap:6px;margin:8px 0 4px}
+  .sw i{width:30px;height:30px;border-radius:7px;display:block;border:1px solid rgba(255,255,255,.12)}
+  .meter{height:5px;border-radius:3px;background:rgba(255,255,255,.10);overflow:hidden;margin-top:3px}
+  .meter i{display:block;height:100%;background:linear-gradient(90deg,#7da9c9,var(--accent));transition:width .3s}
+  .note{margin-top:12px;color:var(--ink-dim);font-size:10.5px;line-height:1.45}
+  .tag{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:10px;color:var(--ink-dim)}
+  @media (max-width:680px){.inspector{display:none}}
+  .hint{position:fixed;left:16px;bottom:118px;max-width:320px;color:var(--ink-dim);font-size:11px;z-index:5}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div class="ui">
+  <div class="top">
+    <div class="brand">Continuum<small>liquid coherence field · prototype</small></div>
+    <div class="spacer"></div>
+    <span class="pill"><label class="small">track</label>
+      <input id="seedInput" type="text" value="cloud-again" spellcheck="false" /></span>
+    <button id="reseed">↻ new track</button>
+    <button id="motionToggle" title="reduced motion">calm</button>
+  </div>
+  <div class="bottom">
+    <div class="timeline" id="timeline"><div class="playhead" id="playhead"></div></div>
+    <div class="transport">
+      <button id="play">❚❚ pause</button>
+      <span class="tag" id="clock">0:00</span>
+      <span class="spacer"></span>
+      <label class="small">demo speed</label>
+      <input id="speed" type="range" min="1" max="24" value="6" style="width:120px" />
+    </div>
+  </div>
+</div>
+
+<div class="inspector">
+  <h4>Director state</h4>
+  <div class="row"><span class="k">section</span><span class="v" id="iSection">—</span></div>
+  <div class="row"><span class="k">role</span><span class="v" id="iRole">—</span></div>
+  <div class="row"><span class="k">current</span><span class="v" id="iMotif">—</span></div>
+  <div class="row"><span class="k">morphing</span><span class="v" id="iTrans">—</span></div>
+  <div class="sw" id="iPalette"></div>
+  <div class="row"><span class="k">energy (accent)</span></div>
+  <div class="meter"><i id="iEnergy" style="width:0%"></i></div>
+  <div class="note">It is <b>one liquid</b> the whole time — a ping-pong feedback field
+  advected by curl noise. Sections never add shapes; they only ease the
+  gradient, flow and temperature over seconds. Everything derives from the
+  track seed; audio would only nudge <i>energy</i>.</div>
+</div>
+
+<div class="hint">One continuous liquid. Sections nudge it slowly — watch the timeline; nothing ever pops in.</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ============================================================
+   CONTINUUM (revised) — a single persistent LIQUID field.
+   Technique: ping-pong FBO feedback + curl-noise advection
+   (= the "GPU fluid advection" ledger priority), presented
+   through a shared lens. Sections morph field PARAMETERS only,
+   slowly. No discrete motif shapes, no pops.
+   ============================================================ */
+
+/* ---------- deterministic seed ---------- */
+function hashStr(s){let h=2166136261>>>0;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}return h>>>0;}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+/* ---------- OKLCH -> linear sRGB ---------- */
+function oklchToLinear(L,C,hDeg){
+  const h=hDeg*Math.PI/180,a=C*Math.cos(h),b=C*Math.sin(h);
+  const l_=L+0.3963377774*a+0.2158037573*b, m_=L-0.1055613458*a-0.0638541728*b, s_=L-0.0894841775*a-1.2914855480*b;
+  const l=l_*l_*l_,m=m_*m_*m_,s=s_*s_*s_;
+  return [4.0767416621*l-3.3077115913*m+0.2309699292*s,
+          -1.2684380046*l+2.6097574011*m-0.3413193965*s,
+          -0.0041960863*l-0.7034186147*m+1.7076147010*s].map(v=>Math.max(0,v));
+}
+function srgb(v){v=Math.max(0,Math.min(1,v));return v<=0.0031308?12.92*v:1.055*Math.pow(v,1/2.4)-0.055;}
+
+/* ---------- Conductor: seed -> palette + section "currents" ----------
+   A "current" is a small set of liquid parameters, all within close
+   ranges so a change between sections is a gentle drift, never a cut. */
+const ROLE_CURRENTS = {
+  // name + param deltas. warp=detail scale, flow=advection strength,
+  // curl=flow swirliness, chroma, lift=brightness, drift=base motion
+  intro:    {name:'calm haze',  warp:1.7, flow:0.55, curl:1.2, chroma:0.85, lift:-0.02, drift:0.010},
+  build:    {name:'rising flow',warp:2.1, flow:0.85, curl:1.6, chroma:1.00, lift: 0.02, drift:0.016},
+  peak:     {name:'deep swell', warp:2.4, flow:1.10, curl:2.1, chroma:1.20, lift: 0.07, drift:0.020},
+  release:  {name:'easing tide',warp:2.0, flow:0.75, curl:1.5, chroma:1.00, lift: 0.01, drift:0.014},
+  afterglow:{name:'warm settle',warp:1.6, flow:0.45, curl:1.1, chroma:0.80, lift:-0.04, drift:0.008},
+};
+function buildPlan(seedStr){
+  const seed=hashStr(seedStr), rnd=mulberry32(seed);
+  const warmAnchors=[35,48,28,52,20,210];
+  const baseH=warmAnchors[Math.floor(rnd()*warmAnchors.length)]+(rnd()*16-8);
+  // fixed palette IDENTITY (slots), so a "colour shift" is a rotation of THIS palette,
+  // never a jump to unrelated colours. The complement on the highlight gives a cool counterpoint.
+  const slots=[
+    {L:0.20+rnd()*0.05, C:0.045+rnd()*0.03, dh:-12},               // ground
+    {L:0.54+rnd()*0.08, C:0.10 +rnd()*0.04, dh:0},                 // mid glow
+    {L:0.84+rnd()*0.05, C:0.07 +rnd()*0.04, dh:(rnd()<.5?16:-150)},// highlight / complement
+  ];
+  const palette=slots.map(s=>oklchToLinear(s.L,s.C,baseH+s.dh)); // base identity (swatches)
+  const colsFor=(hue,lift,chroma)=>slots.map(s=>
+    oklchToLinear(Math.min(0.95,s.L+lift*0.4), s.C*chroma, baseH+s.dh+hue));
+  const warmth=0.55+rnd()*0.3;
+
+  const n=4+Math.floor(rnd()*3), peakIdx=1+Math.floor(rnd()*(n-2));
+  let t=0; const sections=[];
+  for(let i=0;i<n;i++){
+    const dur=22+rnd()*36;
+    const d=Math.abs(i-peakIdx)/Math.max(1,n-1);
+    let energy=Math.max(0.15,Math.min(1,0.25+(1-d)*0.7+(rnd()*0.1-0.05)));
+    let role = i===0?'intro' : i===n-1?'afterglow' : i===peakIdx?'peak' : (i<peakIdx?'build':'release');
+    const c={...ROLE_CURRENTS[role]};
+    c.warp*=1+(rnd()*0.12-0.06); c.flow*=1+(rnd()*0.14-0.07); c.curl*=1+(rnd()*0.18-0.09);
+    c.driftAng=rnd()*Math.PI*2;
+    // ---- occasional, seeded HUE SHIFT (degrees), bounded so it stays the same world ----
+    let hue;
+    if(role==='peak')        hue=(rnd()<.5?1:-1)*(20+rnd()*18);   // the big expressive turn
+    else if(role==='build')  hue=(rnd()<.5?1:-1)*(5+rnd()*7);
+    else                     hue=(rnd()*4-2);                     // calm: barely any
+    if(role!=='peak' && rnd()<0.28) hue+=(rnd()<.5?1:-1)*(12+rnd()*10); // a rare mid "turn"
+    const cols=colsFor(hue,c.lift,c.chroma);
+    sections.push({i,role,start:t,dur,energy,cur:c,hue,cols,
+      colObjs:cols.map(rgb=>new THREE.Color().setRGB(...rgb.map(srgb)))});
+    t+=dur;
+  }
+  return {seed,baseH,palette,warmth,sections,total:t};
+}
+
+/* ---------- renderer + scenes ---------- */
+const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('gl'),antialias:false,powerPreference:'high-performance'});
+const cam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+const quad=new THREE.PlaneGeometry(2,2);
+const VERT=`varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position,1.0);}`;
+
+const NOISE=`
+float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+34.5);return fract(p.x*p.y);}
+float noise(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.-2.*f);
+  return mix(mix(hash(i),hash(i+vec2(1,0)),u.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),u.x),u.y);}
+float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*noise(p);p*=2.02;a*=.5;}return v;}
+`;
+
+/* ----- SIMULATION pass: advect previous frame, inject a little fresh field ----- */
+const simU={
+  uPrev:{value:null}, uTime:{value:0}, uTexel:{value:new THREE.Vector2()}, uAspect:{value:1},
+  uSeed:{value:new THREE.Vector2()},
+  uCol1:{value:new THREE.Color()}, uCol2:{value:new THREE.Color()}, uCol3:{value:new THREE.Color()},
+  uWarmth:{value:0.7},
+  uWarp:{value:2.0}, uFlow:{value:0.8}, uCurl:{value:1.5},
+  uChroma:{value:1.0}, uLift:{value:0.0}, uDrift:{value:new THREE.Vector2(0.012,0.008)},
+  uInject:{value:0.025}, uEnergy:{value:0.4},
+};
+const simMat=new THREE.ShaderMaterial({uniforms:simU,vertexShader:VERT,fragmentShader:`
+precision highp float; varying vec2 vUv; ${NOISE}
+uniform sampler2D uPrev; uniform float uTime,uAspect,uWarmth,uWarp,uFlow,uCurl,uChroma,uLift,uInject,uEnergy;
+uniform vec2 uTexel,uSeed,uDrift; uniform vec3 uCol1,uCol2,uCol3;
+vec3 palette(float t){t=clamp(t,0.,1.);
+  vec3 c=mix(uCol1,uCol2,smoothstep(0.0,0.55,t)); return mix(c,uCol3,smoothstep(0.5,1.0,t));}
+vec2 warp2(vec2 p,out vec2 q){
+  q=vec2(fbm(p+uSeed),fbm(p+uSeed+vec2(5.2,1.3)));
+  vec2 r=vec2(fbm(p+4.0*q+vec2(1.7,9.2)),fbm(p+4.0*q+vec2(8.3,2.8)));
+  return vec2(fbm(p+4.0*r), q.x);
+}
+// curl of an fbm potential -> smooth divergence-free flow (liquid)
+vec2 curl(vec2 p){float e=0.012;
+  float a=fbm(p+vec2(0.,e)),b=fbm(p-vec2(0.,e)),c=fbm(p+vec2(e,0.)),d=fbm(p-vec2(e,0.));
+  return vec2(a-b,-(c-d))/(2.0*e);}
+void main(){
+  vec2 uv=vUv; vec2 p=vec2((uv.x-0.5)*uAspect,uv.y-0.5);
+  // flow field, slowly turning
+  vec2 fl=curl(p*uCurl + uDrift*uTime*4.0);
+  vec2 adv=uv - fl*uFlow*uTexel*1.6*(0.7+0.6*uEnergy);
+  vec3 prev=texture2D(uPrev,adv).rgb;
+  // fresh field colour (the thing being slowly stirred in)
+  vec2 q; vec2 w=warp2(p*uWarp + uDrift*uTime,q);
+  float f=w.x;
+  float grad=smoothstep(-0.1,1.05, uv.y*0.5 + f*0.85 + uLift);
+  vec3 fresh=palette(grad);
+  fresh=mix(fresh,fresh*vec3(1.08,1.0,0.92),uWarmth);
+  fresh*=(0.8+0.45*f)*uChroma;
+  // inject a small amount each frame -> changes ooze in over ~1s, never pop
+  vec3 outc=mix(prev,fresh,clamp(uInject,0.,1.));
+  gl_FragColor=vec4(outc,1.0);
+}`});
+const simScene=new THREE.Scene(); simScene.add(new THREE.Mesh(quad,simMat));
+
+/* ----- PRESENT pass: shared LENS (bloom + filmic + vignette + grain) ----- */
+const preU={uTex:{value:null},uTime:{value:0},uRes:{value:new THREE.Vector2()},
+  uVignette:{value:0.9},uGrain:{value:0.05},uExposure:{value:1.06},uBloom:{value:0.5},uEnergy:{value:0.4}};
+const preMat=new THREE.ShaderMaterial({uniforms:preU,vertexShader:VERT,fragmentShader:`
+precision highp float; varying vec2 vUv;
+uniform sampler2D uTex; uniform float uTime,uVignette,uGrain,uExposure,uBloom,uEnergy; uniform vec2 uRes;
+float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+34.5);return fract(p.x*p.y);}
+void main(){
+  vec3 col=texture2D(uTex,vUv).rgb;
+  // cheap bloom: soft 5-tap highlight lift (no postprocessing lib)
+  vec2 px=1.5/uRes; vec3 b=vec3(0.);
+  b+=texture2D(uTex,vUv+vec2(px.x,0.)).rgb; b+=texture2D(uTex,vUv-vec2(px.x,0.)).rgb;
+  b+=texture2D(uTex,vUv+vec2(0.,px.y)).rgb; b+=texture2D(uTex,vUv-vec2(0.,px.y)).rgb; b*=0.25;
+  float lum=dot(b,vec3(0.299,0.587,0.114));
+  col+=b*smoothstep(0.55,1.1,lum)*uBloom*(0.6+0.5*uEnergy);
+  // filmic tonemap (ACES approx) for warm, smooth depth
+  col*=uExposure; col=(col*(2.51*col+0.03))/(col*(2.43*col+0.59)+0.14);
+  // vignette + grain
+  float vig=smoothstep(1.25,0.4,length((vUv-0.5)*vec2(1.15,1.25)));
+  col*=mix(1.0,vig,uVignette);
+  col+=(hash(vUv*uRes+fract(uTime))-0.5)*uGrain;
+  gl_FragColor=vec4(clamp(col,0.,1.),1.0);
+}`});
+const preScene=new THREE.Scene(); preScene.add(new THREE.Mesh(quad,preMat));
+
+/* ---------- ping-pong targets ---------- */
+let rtA,rtB,needsInit=true,boost=0;
+function makeRT(w,h){return new THREE.WebGLRenderTarget(w,h,{type:THREE.HalfFloatType,
+  minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,
+  wrapS:THREE.ClampToEdgeWrapping,wrapT:THREE.ClampToEdgeWrapping,depthBuffer:false,stencilBuffer:false});}
+function alloc(){
+  const dpr=Math.min(devicePixelRatio,1.5);
+  const w=Math.max(2,Math.floor(innerWidth*dpr)), h=Math.max(2,Math.floor(innerHeight*dpr));
+  rtA&&rtA.dispose(); rtB&&rtB.dispose();
+  rtA=makeRT(w,h); rtB=makeRT(w,h);
+  simU.uTexel.value.set(1/w,1/h); simU.uAspect.value=w/h;
+  preU.uRes.value.set(w,h);
+  renderer.setSize(innerWidth,innerHeight,false);
+  needsInit=true;
+}
+
+/* ---------- runtime state ---------- */
+let PLAN, playTime=0, playing=true, last=performance.now(), reduced=false, demoSpeed=6;
+// eased live params
+const L={warp:2,flow:.8,curl:1.5,chroma:1,lift:0,driftAng:0,drift:.012,energy:.4};
+
+const tlEl=document.getElementById('timeline'), phEl=document.getElementById('playhead');
+
+function load(seedStr){
+  PLAN=buildPlan(seedStr);
+  simU.uSeed.value.set((PLAN.seed%1000)/100,((PLAN.seed>>>10)%1000)/100);
+  const c0=PLAN.sections[0].colObjs;
+  simU.uCol1.value.copy(c0[0]); simU.uCol2.value.copy(c0[1]); simU.uCol3.value.copy(c0[2]);
+  simU.uWarmth.value=PLAN.warmth;
+  playTime=0; boost=1.0; renderTimeline();
+  const sw=document.getElementById('iPalette'); sw.innerHTML='';
+  for(let i=0;i<3;i++){const el=document.createElement('i');sw.appendChild(el);} // updated live in frame()
+}
+function renderTimeline(){
+  [...tlEl.querySelectorAll('.seg')].forEach(e=>e.remove());
+  PLAN.sections.forEach(s=>{
+    const el=document.createElement('div'); el.className='seg';
+    el.style.left=(s.start/PLAN.total*100)+'%'; el.style.width=(s.dur/PLAN.total*100)+'%';
+    const c=PLAN.palette[1].map(v=>Math.round(srgb(v*(0.5+s.energy))*255));
+    el.style.background=`linear-gradient(180deg,rgba(${c[0]},${c[1]},${c[2]},.55),rgba(${c[0]},${c[1]},${c[2]},.16))`;
+    el.innerHTML=`<b>${s.role}</b><span>${s.cur.name}</span>`;
+    el.onclick=ev=>{ev.stopPropagation();playTime=s.start+0.01;};
+    tlEl.insertBefore(el,phEl);
+  });
+}
+const fmt=s=>Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
+const smooth=(a,b,x)=>{x=Math.max(0,Math.min(1,(x-a)/(b-a)));return x*x*(3-2*x);};
+
+function frame(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  if(playing) playTime=(playTime+dt*demoSpeed)%PLAN.total;
+
+  let cur=PLAN.sections[0],idx=0;
+  for(let i=0;i<PLAN.sections.length;i++){const s=PLAN.sections[i];
+    if(playTime>=s.start&&playTime<s.start+s.dur){cur=s;idx=i;break;}}
+  const local=(playTime-cur.start)/cur.dur;
+  const c=cur.cur;
+
+  // gentle param easing (slow time-constant => ~seconds to morph, never a pop)
+  const tau=reduced?0.4:0.9;                 // smoothing rate per second
+  const k=1-Math.exp(-dt/tau);
+  L.warp+=(c.warp-L.warp)*k; L.flow+=(c.flow-L.flow)*k; L.curl+=(c.curl-L.curl)*k;
+  L.chroma+=(c.chroma-L.chroma)*k; L.lift+=(c.lift-L.lift)*k;
+  L.drift+=(c.drift-L.drift)*k; L.driftAng+=(c.driftAng-L.driftAng)*k*0.5;
+  // simulated energy envelope (attack/release) within section -> bounded accent
+  const env=Math.min(local/0.12,1)*(1-smooth(0.7,1.0,local));
+  const targetE=0.18+cur.energy*(0.4+0.5*env);
+  L.energy+=(targetE-L.energy)*k;
+  // ---- colour easing: slow tau so a hue shift blooms over ~1.5s, never cuts ----
+  const kc=1-Math.exp(-dt/(reduced?1.0:1.6));
+  simU.uCol1.value.lerp(cur.colObjs[0],kc);
+  simU.uCol2.value.lerp(cur.colObjs[1],kc);
+  simU.uCol3.value.lerp(cur.colObjs[2],kc);
+
+  // push to sim uniforms
+  simU.uWarp.value=L.warp; simU.uFlow.value=L.flow*(reduced?0.4:1); simU.uCurl.value=L.curl;
+  simU.uChroma.value=L.chroma; simU.uLift.value=L.lift; simU.uEnergy.value=L.energy;
+  simU.uDrift.value.set(Math.cos(L.driftAng)*L.drift,Math.sin(L.driftAng)*L.drift*0.7);
+  simU.uTime.value=now/1000*(reduced?0.2:1);
+  // injection: high on (re)seed/init so it converges in ~1s, then very low = subtle
+  if(boost>0)boost-=dt;
+  simU.uInject.value=needsInit?1.0:(boost>0?0.10:0.022);
+
+  // sim step: read rtA -> write rtB
+  simU.uPrev.value=rtA.texture;
+  renderer.setRenderTarget(rtB); renderer.render(simScene,cam); renderer.setRenderTarget(null);
+  // present rtB through the lens
+  preU.uTex.value=rtB.texture; preU.uTime.value=now/1000; preU.uEnergy.value=L.energy;
+  preU.uGrain.value=reduced?0.03:0.05;
+  renderer.render(preScene,cam);
+  [rtA,rtB]=[rtB,rtA];
+  needsInit=false;
+
+  // hud
+  phEl.style.left=(playTime/PLAN.total*100)+'%';
+  document.getElementById('clock').textContent=fmt(playTime)+' / '+fmt(PLAN.total);
+  document.getElementById('iSection').textContent=(idx+1)+' / '+PLAN.sections.length;
+  document.getElementById('iRole').textContent=cur.role;
+  document.getElementById('iMotif').textContent=c.name;
+  const settled=Math.abs(L.warp-c.warp)<0.02 && Math.abs(L.flow-c.flow)<0.02
+    && Math.abs(simU.uCol2.value.r-cur.colObjs[1].r)<0.01;
+  document.getElementById('iTrans').textContent=settled?'settled':'easing colour…';
+  document.getElementById('iEnergy').style.width=Math.round(L.energy*100)+'%';
+  // live palette swatches reflect the eased (shifting) colour
+  const sw=document.getElementById('iPalette').children;
+  if(sw.length===3){const cc=[simU.uCol1.value,simU.uCol2.value,simU.uCol3.value];
+    for(let i=0;i<3;i++)sw[i].style.background=
+      `rgb(${Math.round(cc[i].r*255)},${Math.round(cc[i].g*255)},${Math.round(cc[i].b*255)})`;}
+
+  requestAnimationFrame(frame);
+}
+
+/* ---------- controls ---------- */
+addEventListener('resize',alloc);
+document.getElementById('play').onclick=e=>{playing=!playing;e.target.textContent=playing?'❚❚ pause':'► play';};
+document.getElementById('seedInput').addEventListener('change',e=>load(e.target.value||'untitled'));
+document.getElementById('reseed').onclick=()=>{const s='roam-'+Math.random().toString(36).slice(2,8);
+  document.getElementById('seedInput').value=s;load(s);};
+document.getElementById('speed').oninput=e=>demoSpeed=+e.target.value;
+document.getElementById('motionToggle').onclick=e=>{reduced=!reduced;e.target.textContent=reduced?'motion':'calm';
+  e.target.style.borderColor=reduced?'var(--accent)':'';};
+tlEl.onclick=e=>{const r=tlEl.getBoundingClientRect();playTime=((e.clientX-r.left)/r.width)*PLAN.total;};
+if(matchMedia('(prefers-reduced-motion: reduce)').matches){reduced=true;
+  document.getElementById('motionToggle').textContent='motion';}
+
+/* ---------- go ---------- */
+alloc(); load('cloud-again'); requestAnimationFrame(frame);
+</script>
+</body>
+</html>

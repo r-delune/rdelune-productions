@@ -186,6 +186,16 @@ Preferred review flow for visual changes:
 2. External worker runs `VISUAL_REVIEW_URL=<deployed-url> npm run review:visual`.
 3. Human or image-capable reviewer inspects `artifacts/visual-review/<timestamp>/index.html` and the JSON telemetry before accepting the visual cycle.
 
+## Color Vibrancy Mandate
+
+**All visuals must feel chromatically rich, not monochrome.** The palette system drives most color; do not fight it by defaulting to near-black backgrounds or single-hue outputs. Specific rules:
+
+- **Backgrounds must carry color.** `bgDark` and `bgMid` are saturated — use them as the ambient fill, not flat black.
+- **Avoid monotone.** Every visual must show at least two perceptually distinct hues at any given moment (base + `accentWarm`, which sits ~55° away). Exploit `accentWarm` for secondary glow, edge highlights, or secondary particle trails.
+- **Section arcs should shift perceived color temperature**, not just brightness. Moving from intro to climax should feel like moving from cool/deep to warm/bright, or vice versa — not just dimmer to brighter of the same hue.
+- **Never clamp to grey.** Avoid `rgba(0,0,0,…)` overdraw that desaturates the palette. Semi-transparent fills must use palette-tinted values (e.g. `rgba(r,g,b,0.6)` from `bgDark`).
+- When self-scoring against the Aesthetic Rubric, include a chromatic variety check: take the min and max hue expressed in any frame — they must differ by ≥ 30°.
+
 ## Branch And Deploy Policy
 
 Hermes commits directly to `main` and deploys after every verified cycle. No PRs, no branches, no human merge step. The verification gates below are the review.
