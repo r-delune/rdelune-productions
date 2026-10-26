@@ -51,7 +51,17 @@ const FRAGMENT_SHADER = /* glsl */ `
 
   void main(){
     vec2 uv = vUv;
-    uv.x *= uResolution.x / max(1.0, uResolution.y);
+    float aspect = uResolution.x / max(1.0, uResolution.y);
+    uv.x *= aspect;
+
+    // A broad refractive depression follows the eased pointer, like gently
+    // pressing the water surface. Movement adds one restrained interference
+    // ring without introducing a persistent simulation or extra render pass.
+    vec2 pointerDelta = (vUv - uPointer) * vec2(aspect, 1.0);
+    float pointerDist = length(pointerDelta);
+    float pointerField = exp(-pointerDist * pointerDist * 18.0) * uPointerPresence;
+    vec2 pointerDir = pointerDelta / max(0.001, pointerDist);
+    uv += pointerDir * pointerField * (0.012 + uPointerVelocity * 0.018);
 
     float t = uTime * uFlowSpeed * (0.5 + uDrift * 0.9);
     // Slow swell from the level envelope — no per-frame bass jump.
@@ -95,7 +105,6 @@ const FRAGMENT_SHADER = /* glsl */ `
 
     // Directional light presence: spatially-varying falloff toward light direction,
     // always active (creates a sense of light source even in section 1).
-    float aspect = uResolution.x / max(1.0, uResolution.y);
     vec2 uvCentered = (vUv - 0.5) * vec2(aspect, 1.0);
     float distFromLight = length(uvCentered - uLightDir * 0.5);
     // Base directional gradient: subtle warm bloom toward the light source
@@ -109,10 +118,15 @@ const FRAGMENT_SHADER = /* glsl */ `
     float glint = pow(caustic, 3.0) * (1.0 + uFlash * 1.5);
 
     float pulse = beatPulse();
-    float brightness = (0.35 + uLevel * 0.4 + uGlow * 0.4 + uSectionProgress * 0.2) * pulse;
+    // Base raised so caustic threads are visible from section zero; level and
+    // sectionProgress provide the dynamic arc on top.
+    float brightness = (0.72 + uLevel * 0.45 + uGlow * 0.4 + uSectionProgress * 0.25) * pulse;
 
     vec3 col = mix(uColorBg, uColorA, caustic * brightness);
     col += uColorWarm * glint * uGlowGain;
+    float pointerRing = exp(-pow((pointerDist - 0.12) * 18.0, 2.0))
+      * uPointerPresence * (0.025 + uPointerVelocity * 0.1);
+    col += uColorWarm * pointerRing;
 
     col = mix(uColorBg, col, exclusionMask());
     col = applyGrainVignette(col, vUv, 0.038, 0.55);

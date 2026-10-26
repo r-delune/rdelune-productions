@@ -786,7 +786,7 @@ export function createCongGenerativeParticles(): Visualizer {
   }
 
   function drawOverlays(ctx: CanvasRenderingContext2D) {
-    if (hasOverlay('grid-rays') || activeRenderer === 'rays' || tuning.mode === 'galaxy') drawGridRays(ctx);
+    if (hasOverlay('grid-rays') || activeRenderer === 'rays') drawGridRays(ctx);
     if (hasOverlay('random-chords') || activeRenderer === 'chords' || tuning.mode === 'chord-storm') drawRandomChords(ctx);
     if (hasOverlay('bouncing-lines')) drawBouncingLines(ctx);
     drawBursts(ctx);

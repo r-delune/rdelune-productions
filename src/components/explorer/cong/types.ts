@@ -16,7 +16,6 @@ export type CongCandidateId =
   | 'landscapeparticlesspiral'
   | 'planetopener'
   | 'particlecurrent'
-  | 'greemngalaxy'
   | 'chordstorm'
   | 'topbottomgreenstorm'
   | 'cloudagainrouter'

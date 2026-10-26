@@ -36,7 +36,6 @@ export const LEGACY_HIDDEN_REVIEW_SKETCHES_STORAGE_KEY = 'productions-hidden-rev
 
 const LEGACY_STARTUP_SKETCH_DECK: readonly ExplorerRecipeId[] = [
   'cong-rain-shower',
-  'cong-green-galaxy',
   'cong-waterline-shimmer',
   'cong-lateral-current',
 ];

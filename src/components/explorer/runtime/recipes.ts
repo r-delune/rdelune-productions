@@ -140,34 +140,6 @@ const RECIPES: Readonly<Record<string, ExplorerRecipe>> = {
     tuningKey: 'cong-cloud-again-intro-generative',
     candidateIds: ['cloudagainrouter', 'cloudagainintro', 'newcloudagainintro'],
   },
-  'cong-green-galaxy': {
-    id: 'cong-green-galaxy',
-    name: 'Cong Green Galaxy',
-    source: 'cong',
-    kernel: 'cong-generative-particles',
-    sceneProfile: 'galaxy',
-    baseParams: { turbulence: 0.34, density: 0.44, glow: 0.3, drift: 0.36, hueShift: 12, shimmer: 0.24, impulse: 0.04 },
-    cardBg: 'transparent',
-    cardBorder: 'rgba(122, 184, 158, 0.17)',
-    tuningKey: 'cong-green-galaxy-generative',
-    candidateIds: ['greemngalaxy'],
-    materialOverlayAlpha: 0.3,
-  },
-  'cong-green-galaxy-orbit': {
-    id: 'cong-green-galaxy-orbit',
-    name: 'Green Galaxy Orbit',
-    source: 'native',
-    kernel: 'cong-green-galaxy',
-    sceneProfile: 'galaxy',
-    baseParams: { turbulence: 0.28, density: 0.38, glow: 0.34, drift: 0.32, hueShift: 14, shimmer: 0.22, impulse: 0.03 },
-    cardBg: 'transparent',
-    cardBorder: 'rgba(122, 184, 158, 0.17)',
-    tuningKey: 'cong-green-galaxy-default',
-    candidateIds: [],
-    productionReady: true,
-    randomEligible: true,
-    startupEligible: false,
-  },
   'cong-top-bottom-storm-template': {
     id: 'cong-top-bottom-storm-template',
     name: 'Cong Top Bottom Storm Template',
@@ -363,20 +335,6 @@ const RECIPES: Readonly<Record<string, ExplorerRecipe>> = {
     startupEligible: true,
     randomEligible: true,
   },
-  'native-gravity-current': {
-    id: 'native-gravity-current',
-    name: 'Gravity Current',
-    source: 'native',
-    kernel: 'native-gravity-current',
-    sceneProfile: 'flow',
-    baseParams: { turbulence: 0.28, density: 0.46, glow: 0.24, drift: 0.3, hueShift: -6, shimmer: 0.22, impulse: 0.03 },
-    cardBg: 'transparent',
-    cardBorder: 'rgba(155, 145, 210, 0.14)',
-    tuningKey: 'native-gravity-current-default',
-    productionReady: true,
-    startupEligible: false,
-    randomEligible: true,
-  },
   'three-curl-flow': {
     id: 'three-curl-flow',
     name: 'Curl Flow Field',
@@ -401,6 +359,20 @@ const RECIPES: Readonly<Record<string, ExplorerRecipe>> = {
     cardBg: 'transparent',
     cardBorder: 'rgba(150, 170, 200, 0.15)',
     tuningKey: 'three-volumetric-fog-default',
+    productionReady: true,
+    startupEligible: false,
+    randomEligible: true,
+  },
+  'three-canyon-vista': {
+    id: 'three-canyon-vista',
+    name: 'Canyon Vista',
+    source: 'native',
+    kernel: 'three-canyon-vista',
+    sceneProfile: 'geology',
+    baseParams: { turbulence: 0.28, density: 0.4, glow: 0.3, drift: 0.3, hueShift: 4, shimmer: 0.22, impulse: 0.03 },
+    cardBg: 'transparent',
+    cardBorder: 'rgba(190, 165, 140, 0.16)',
+    tuningKey: 'three-canyon-vista-default',
     productionReady: true,
     startupEligible: false,
     randomEligible: true,
@@ -510,6 +482,10 @@ export const DEFAULT_RECIPE_ID = 'native-smoke-planes';
 // When true, the random rotation pool is restricted to Three.js kernels only.
 export const THREEJS_ONLY_MODE = false;
 
+// When true, the rotation pool is pinned to just the curl-flow field and volumetric fog kernels.
+export const BEST_MODE = true;
+export const BEST_MODE_RECIPE_IDS: readonly ExplorerRecipeId[] = ['three-curl-flow', 'three-volumetric-fog', 'three-canyon-vista'];
+
 export const GLOBAL_DISABLED_RECIPE_IDS: readonly ExplorerRecipeId[] = [
   'native-flow-field-drift',
 ];
@@ -555,6 +531,7 @@ export function listRandomRecipeIds(localDisabledRecipeIds: readonly ExplorerRec
       && !isGloballyDisabledRecipe(recipe.id)
       && !localDisabled.has(recipe.id)
       && (!THREEJS_ONLY_MODE || recipe.kernel.startsWith('three-'))
+      && (!BEST_MODE || BEST_MODE_RECIPE_IDS.includes(recipe.id))
     ))
     .map((recipe) => recipe.id);
 }

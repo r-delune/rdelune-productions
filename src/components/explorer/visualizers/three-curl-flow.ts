@@ -25,7 +25,7 @@ import { getQualityScale } from '../render-quality';
 import { resolveThreeCurlFlowTuning, type ThreeCurlFlowTuning } from '../tuning';
 import type { ExclusionRect, VisualEvent, VisualParams } from '../visualizer';
 import { clamp01, mix } from './cong-particle-primitives';
-import { createInstancedField, createSectionProgress, NOISE_GLSL, type InstancedField } from './three-scene-helpers';
+import { createInstancedField, createSectionProgress, NOISE_GLSL, TONEMAP_GLSL, type InstancedField } from './three-scene-helpers';
 import { createThreeVisualizer, type ThreeScene, type ThreeSceneBuildArgs } from './three-visualizer';
 
 const VERTEX_SHADER = /* glsl */ `
@@ -65,6 +65,8 @@ const VERTEX_SHADER = /* glsl */ `
 
   // Shared noise library (simplex + curl) — never re-implement per sketch.
   ${NOISE_GLSL}
+  // Shared film stock (filmic colour response) — matches the fullscreen kernels.
+  ${TONEMAP_GLSL}
 
   // Normalized curl direction for even-speed streamlines (shared curlNoise is
   // un-normalized; guard the zero case to avoid NaN).
@@ -123,9 +125,9 @@ const VERTEX_SHADER = /* glsl */ `
     // Near particles brighter; far particles cooler for depth/parallax feel
     float warmth = clamp(aRand * 0.5 + uSectionProgress * 0.3 + aDepth * 0.3, 0.0, 1.0);
     vec3 col = mix(uColorA, uColorWarm, warmth);
-    float bright = (0.3 + uGlow * 0.7 + uLevel * 0.3 + aDepth * 0.5) * beat;
-    vColor = col * bright;
-    vAlpha = lifeEnv * exMask * (0.22 + uGlow * 0.45 + aDepth * 0.55);
+    float bright = (0.5 + uGlow * 0.7 + uLevel * 0.4 + aDepth * 0.5) * beat;
+    vColor = applyToneMap(col * bright);   // shared film stock (filmic colour response)
+    vAlpha = lifeEnv * exMask * (0.38 + uGlow * 0.45 + aDepth * 0.55);
   }
 `;
 
@@ -274,9 +276,9 @@ function makeCurlFlowScene(): ThreeScene {
       if (!uniforms || !field || !three || !palette) return;
       time += dt;
 
-      const damp = 1 - Math.pow(0.001, dt);
+      const damp = 1 - Math.pow(0.5, dt);
       densitySurge = mix(densitySurge, densitySurgeTarget, damp);
-      densitySurgeTarget = Math.max(0, densitySurgeTarget - dt * 0.5);
+      densitySurgeTarget = Math.max(0, densitySurgeTarget - dt * 0.3);
 
       // Slow (~2.5 s) energy envelope — structural song dynamics, no jitter.
       level += (audio.energy - level) * (1 - Math.exp(-Math.max(0, dt) / 2.5));
@@ -316,10 +318,13 @@ function makeCurlFlowScene(): ThreeScene {
 
       // Quality / density is the per-frame draw lever: scale the drawn point
       // count off the frame-local snapshot, never persistent state.
-      // Entrance arc: section 1 is sparse (~15% of max), accumulates to full by section 2.
+      // Entrance arc: retain a visible 5% seed instead of a near-blank frame,
+      // then accumulate gradually through the second section. Using the full
+      // two-section range avoids turning the opener into a wall of particles.
       const quality = getQualityScale();
-      const entranceArc = Math.min(1, section.value / 0.22);
-      const drawFraction = clamp01(entranceArc * (0.15 + params.density * 0.85) + densitySurge * 0.25) * quality;
+      const entranceArc = Math.min(1, section.value / 0.45);
+      const settledDensity = 0.15 + params.density * 0.85;
+      const drawFraction = clamp01(mix(0.05, settledDensity, entranceArc) + densitySurge * 0.25) * quality;
       field.setDrawFraction(drawFraction, 1000);
 
       const ex = uniforms.uExclusion.value as import('three').Vector4;

@@ -2602,3 +2602,38 @@ input[type="range"].appearance-none::-moz-range-thumb {
   transition: color 0.1s ease, border-color 0.1s ease;
 }
 .chud-toggle-btn:hover { color: var(--explorer-c1); border-color: var(--explorer-accent-dim); }
+
+/* Cinematic cold-open — the first-touch invitation overlay (ExplorerColdOpen). */
+.explorer-cold-open {
+  -webkit-tap-highlight-color: transparent;
+}
+.explorer-cold-open-inner {
+  animation: coldOpenRise 1500ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.explorer-cold-open-cta {
+  pointer-events: auto;
+  cursor: pointer;
+  color: rgba(238, 244, 255, 0.97);
+  background: rgba(12, 16, 24, 0.5);
+  border: 1px solid var(--explorer-now-playing-border);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.25s ease, background-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+.explorer-cold-open-cta:hover {
+  border-color: var(--explorer-accent);
+  background: var(--explorer-accent-bg);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 48px rgba(56, 189, 248, 0.18);
+}
+.explorer-cold-open-cta:active { transform: translateY(0); }
+@keyframes coldOpenRise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .explorer-cold-open-inner { animation: none; }
+  .explorer-cold-open-cta { transition: none; }
+  .explorer-cold-open-cta:hover { transform: none; }
+}

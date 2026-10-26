@@ -1,5 +1,5 @@
 import { normalizeRuntimeKey } from './keys';
-import { DEFAULT_RECIPE_ID, GLOBAL_DISABLED_RECIPE_IDS, getExplorerRecipe, isGloballyDisabledRecipe, isImageDependentRecipe } from './recipes';
+import { DEFAULT_RECIPE_ID, GLOBAL_DISABLED_RECIPE_IDS, getExplorerRecipe, isGloballyDisabledRecipe, isImageDependentRecipe, isProductionReadyRecipe } from './recipes';
 import { getSectionMood } from './section-moods';
 import { normalizeSectionTimes } from './section-times';
 import { buildStoryboardSequence, expandSectionRoles } from './storyboard';
@@ -14,63 +14,38 @@ import type { VisualParams } from '../visualizer';
    the canvas runtime.
 ──────────────────────────────────────────────────────────────── */
 
+// `cong-artwork-mosh-*` recipes were retired in "Prune weak production visuals"
+// (2026-06-19); `three-artwork-flux` is the only live recipe left in that family.
+// Do not reintroduce the old IDs here — pools must only reference recipes that
+// exist in runtime/recipes.ts, or they silently collapse to the default recipe.
 export const ARTWORK_OPENER_RECIPES: readonly ExplorerRecipeId[] = [
-  'cong-artwork-mosh-soft-scan',
-  'cong-artwork-mosh-horizontal-slice',
-  'cong-artwork-mosh-pixel-islands',
-  'cong-artwork-mosh-left-flow',
-  'cong-artwork-mosh-storm-open',
-  'cong-artwork-mosh-fracture',
-  'cong-artwork-mosh-minimal-ghost',
-  'cong-artwork-mosh-crystal-shard',
-  'cong-artwork-mosh-veil-drift',
+  'three-artwork-flux',
 ] as const;
 
 const GENERATED_MOSH_ACCENT_RECIPES: readonly ExplorerRecipeId[] = [
-  'cong-artwork-mosh-soft-scan',
-  'cong-artwork-mosh-pixel-islands',
-  'cong-artwork-mosh-left-flow',
-  'cong-artwork-mosh-storm-open',
-  'cong-artwork-mosh-fracture',
-  'cong-artwork-mosh-minimal-ghost',
-  'cong-artwork-mosh-pixel-sort',
-  'cong-artwork-mosh-slit-scan',
-  'cong-artwork-mosh-crystal-shard',
-  'cong-artwork-mosh-veil-drift',
   'three-artwork-flux',
 ] as const;
 
 const GENERATIVE_VARIETY_SEQUENCE: readonly ExplorerRecipeId[] = [
   'cong-rain-shower',
-  'cong-green-galaxy',
   'native-warp-mesh-deep',
   'cong-waterline-shimmer',
-  'cong-artwork-mosh-soft-scan',
   'cong-cloud-orbit',
   'cong-contour-lines',
   'cong-planet-core',
-  'cong-artwork-mosh-minimal-ghost',
   'cong-lateral-current',
   'cong-lateral-cascade',
-  'cong-artwork-mosh-left-flow',
-  'cong-artwork-mosh-pixel-sort',
-  'cong-artwork-mosh-slit-scan',
   'cong-particle-current',
   'cong-landscape-flow',
-  'cong-artwork-mosh-pixel-islands',
   'cong-landscape-spiral',
   'cong-broken-grid',
   'native-flow-field-chroma',
-  'native-lissajous-drift',
   'native-terrain-erode',
-  'native-kaleido-fold-ambient',
-  'native-kaleido-fold-bloom',
   'native-reaction-veil',
   'native-reaction-veil-deep',
   'native-attractor-drift',
   'native-attractor-surge',
   'native-aurora-veil',
-  'native-gravity-current',
   'three-curl-flow',
   'three-volumetric-fog',
   'three-caustics',
@@ -108,12 +83,11 @@ const ROLE_PARAMS: Readonly<Record<ExplorerStoryboardSectionRole, Partial<import
   afterglow: { turbulence: 0.18, density: 0.28, drift: 0.22, glow: 0.20, shimmer: 0.12 },
 };
 const MOSH_BASE_RECIPE_ID = 'three-artwork-flux';
-const GENERATED_INTRO_RECIPE_ID = 'cong-rain-shower';
+const GENERATED_INTRO_RECIPE_ID = 'three-curl-flow';
 export const DEFAULT_TRACK_BPM = 120;
 const ARCHIVED_RECIPE_REPLACEMENTS: Readonly<Record<string, ExplorerRecipeId>> = {
   'cong-artwork-datamosh-left-flow': MOSH_BASE_RECIPE_ID,
   'cong-artwork-datamosh-storm-evolution': MOSH_BASE_RECIPE_ID,
-  'cong-cloud-again-peak': 'cong-green-galaxy',
 };
 
 function hashString(value: string): number {
@@ -193,26 +167,11 @@ export function pickArtworkOpener(
   disabledRecipeIds?: readonly ExplorerRecipeId[],
 ): ExplorerRecipeId {
   const seed = hashString(`${albumKey}::${trackKey}::${getBaseColorBucket(baseColor)}::${sectionCount}::artwork-opener`);
-  const shortTrackPool: readonly ExplorerRecipeId[] = [
-    'cong-artwork-mosh-minimal-ghost',
-    'cong-artwork-mosh-soft-scan',
-    'cong-artwork-mosh-horizontal-slice',
-    'cong-artwork-mosh-pixel-islands',
-  ];
-  const longTrackPool: readonly ExplorerRecipeId[] = [
-    'cong-artwork-mosh-left-flow',
-    'cong-artwork-mosh-storm-open',
-    'cong-artwork-mosh-fracture',
-    'three-artwork-flux',
-    'cong-artwork-mosh-pixel-islands',
-    'cong-artwork-mosh-horizontal-slice',
-  ];
-  const pool = sectionCount <= 2
-    ? shortTrackPool
-    : sectionCount >= 6
-      ? longTrackPool
-      : ARTWORK_OPENER_RECIPES;
-  const allowedPool = filterRecipePool(pool, disabledRecipeIds, ARTWORK_OPENER_RECIPES);
+  // The old short/long-track pools were entirely cong-artwork-mosh-* variants
+  // that no longer exist (see ARTWORK_OPENER_RECIPES comment) — they collapsed
+  // to the same single live recipe regardless of section count, so the
+  // by-length split was removed rather than kept as dead weight.
+  const allowedPool = filterRecipePool(ARTWORK_OPENER_RECIPES, disabledRecipeIds, ARTWORK_OPENER_RECIPES);
 
   return allowedPool[seed % allowedPool.length] ?? MOSH_BASE_RECIPE_ID;
 }
@@ -220,6 +179,10 @@ export function pickArtworkOpener(
 function resolveProductionRecipeId(recipeId: ExplorerRecipeId | undefined, fallbackRecipeId: ExplorerRecipeId = MOSH_BASE_RECIPE_ID): ExplorerRecipeId | undefined {
   if (!recipeId) return undefined;
   const replacement = ARCHIVED_RECIPE_REPLACEMENTS[recipeId] ?? recipeId;
+  // Guards against retired/typo'd recipe ids lingering in a pool array: without
+  // this, a dead id silently passes through and only gets caught later by
+  // getExplorerRecipe()'s DEFAULT_RECIPE_ID fallback, collapsing variety.
+  if (!isProductionReadyRecipe(replacement)) return fallbackRecipeId;
   return isGloballyDisabledRecipe(replacement) ? fallbackRecipeId : replacement;
 }
 
@@ -262,7 +225,6 @@ function buildDefaultGenerativeSequence(
     GENERATED_INTRO_RECIPE_ID,
     'cong-rain-shower',
     'cong-lateral-current',
-    'native-kaleido-fold-ambient',
     'native-attractor-drift',
     'native-aurora-veil',
     'three-curl-flow',
@@ -274,14 +236,11 @@ function buildDefaultGenerativeSequence(
   const firstRecipe = introPool[introIndex] ?? safePool[seed % safePool.length] ?? GENERATED_INTRO_RECIPE_ID;
   const result: ExplorerRecipeId[] = [firstRecipe];
   const peakCandidates: readonly ExplorerRecipeId[] = [
-    'cong-green-galaxy',
     'cong-waterline-shimmer',
     'cong-lateral-cascade',
     'cong-broken-grid',
     'cong-landscape-spiral',
-    'native-kaleido-fold-bloom',
     'native-attractor-surge',
-    'native-gravity-current',
   ];
   const peakPool = peakCandidates.filter((recipeId) => safePoolSet.has(recipeId));
 
@@ -1002,6 +961,7 @@ export function buildTrackVisualPlan(
       transitionMs: hasPinnedVisualStructure
         ? sanitizeTransitionMs(step?.transitionMs ?? defaultTransitionMs)
         : generatedTransitionMs,
+      role,
       ...(step?.moodId ? { moodId: step.moodId } : {}),
       ...(mergeParams(mood?.params, step?.params) ?? generatedParams
         ? { params: mergeParams(mood?.params, step?.params) ?? generatedParams }

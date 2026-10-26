@@ -161,7 +161,7 @@ export default function AlbumSidebar({ albums, albumIndex, playingAlbumIndex = a
             </p>
 
             <p className="explorer-sidebar-description">
-              A lot of the material is recovered from corrupt or incomplete project files, so expect rough edges! While I created most the initial visuals myself, a background process is working continously to expand + improve them day by day.  This is a living project - more content TBD 🙂
+              A lot of the material is recovered from corrupt or incomplete project files, so expect rough edges! This is a living project - more content TBD 🙂
               {/* The visual sketches were created in P5.js during a period when I was losing my hearing, so it feels good to finally give them a home here alongside more recent music.  */}
             </p>
           </>

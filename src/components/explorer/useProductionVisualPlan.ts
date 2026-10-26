@@ -13,7 +13,7 @@ import {
 
 const FORCE_GENERATED_VISUALS_FOR_ALL_TRACKS = false;
 const EMPTY_SECTION_TIMES: number[] = [];
-const TRUST_DETECTED_SECTION_TIMES = false;
+const TRUST_DETECTED_SECTION_TIMES = true;
 const PARTICLE_EVOLUTION_KERNELS = new Set([
   'cong-generative-particles',
   'cong-cloud-orbit',

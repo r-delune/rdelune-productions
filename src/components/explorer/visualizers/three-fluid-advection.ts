@@ -58,6 +58,10 @@ const VELOCITY_SHADER = /* glsl */ `
   uniform float uCurlStrength;  // driven by section progress
   uniform float uNoiseScale;    // spatial frequency of the curl field
   uniform float uDrift;         // slow time-drift speed
+  uniform vec2  uPointerPos;    // normalized UV, bottom-origin
+  uniform vec2  uPointerDelta;  // recent movement direction
+  uniform float uPointerForce;  // eased movement energy
+  uniform float uAspect;
 
   void main() {
     // Decode velocity from [0,1] → [-1,1]
@@ -77,6 +81,12 @@ const VELOCITY_SHADER = /* glsl */ `
     curl = normalize(curl + 0.0001) * uCurlStrength;
 
     vel = vel * uViscosity + curl;
+
+    // Local directional force: the pointer disturbs the existing current
+    // rather than attracting dye toward a cursor-shaped singularity.
+    vec2 pointerOffset = (vUv - uPointerPos) * vec2(uAspect, 1.0);
+    float pointerField = exp(-dot(pointerOffset, pointerOffset) * 46.0);
+    vel += uPointerDelta * pointerField * uPointerForce * 0.16;
 
     // Clamp to prevent runaway advection at peak injection
     vel = clamp(vel, -1.0, 1.0);
@@ -101,6 +111,9 @@ const DYE_SHADER = /* glsl */ `
   uniform float uInjectRadius; // radius in UV space
   uniform vec3  uInjectColor;  // palette-driven dye colour
   uniform float uTime;
+  uniform vec2  uPointerPos;
+  uniform float uPointerInject;
+  uniform float uAspect;
 
   float hash21(vec2 p) {
     p = fract(p * vec2(234.34, 435.345));
@@ -127,6 +140,11 @@ const DYE_SHADER = /* glsl */ `
     dye.rgb += uInjectColor * plume * uInject;
     dye.a   += plume * uInject * 0.8;
 
+    vec2 pointerOffset = (vUv - uPointerPos) * vec2(uAspect, 1.0);
+    float pointerPlume = exp(-dot(pointerOffset, pointerOffset) * 85.0) * uPointerInject;
+    dye.rgb += uInjectColor * pointerPlume * 0.16;
+    dye.a += pointerPlume * 0.12;
+
     gl_FragColor = clamp(dye, 0.0, 1.0);
   }
 `;
@@ -145,15 +163,16 @@ const DISPLAY_SHADER = /* glsl */ `
     vec4 dye = texture2D(uDye, vUv);
     float density = clamp(dye.a, 0.0, 1.0);
 
-    // Section-aware brightness floor so section 0 is not pitch-black
-    float brightness = 0.32 + uSectionProgress * 0.45 + uLevel * 0.18 + uGlow * 0.15;
+    // Section-aware brightness floor — raised so thin dye is visible even at rest
+    float brightness = 0.48 + uSectionProgress * 0.42 + uLevel * 0.22 + uGlow * 0.20;
 
     // Colour: bg in empty space, mid at low density, accent at peak,
-    // warm at the very top (vortex cores).
+    // warm at the very top (vortex cores). Thresholds lowered so sparse
+    // dye at late sections still paints mid colour rather than disappearing.
     vec3 col = uColorBg;
-    col = mix(col, uColorMid,  smoothstep(0.04, 0.30, density) * brightness);
-    col = mix(col, uColorA,    smoothstep(0.20, 0.70, density) * brightness);
-    col = mix(col, uColorWarm, smoothstep(0.60, 0.95, density) * (0.5 + uColorShift * 0.5));
+    col = mix(col, uColorMid,  smoothstep(0.02, 0.22, density) * brightness);
+    col = mix(col, uColorA,    smoothstep(0.12, 0.55, density) * brightness);
+    col = mix(col, uColorWarm, smoothstep(0.45, 0.88, density) * (0.5 + uColorShift * 0.5));
 
     // Blend in any tint the dye itself carries (from multi-color injection)
     col = mix(col, dye.rgb, clamp(density * 0.35, 0.0, 0.35));
@@ -266,6 +285,10 @@ function makeFluidAdvectionScene(): ThreeScene {
         uCurlStrength: { value: tuning.baseCurlStrength },
         uNoiseScale:   { value: tuning.noiseScale },
         uDrift:        { value: tuning.driftSpeed },
+        uPointerPos:   { value: new three.Vector2(0.5, 0.5) },
+        uPointerDelta: { value: new three.Vector2(0, 0) },
+        uPointerForce: { value: 0 },
+        uAspect:       { value: args.w / Math.max(1, args.h) },
       };
       velFs = createFullscreenScene(three, VELOCITY_SHADER, velUniforms);
       velScene = velFs.scene;
@@ -282,6 +305,9 @@ function makeFluidAdvectionScene(): ThreeScene {
         uInjectRadius: { value: tuning.injectRadius },
         uInjectColor:  { value: new three.Vector3(1, 1, 1) },
         uTime:         { value: 0 },
+        uPointerPos:   { value: new three.Vector2(0.5, 0.5) },
+        uPointerInject:{ value: 0 },
+        uAspect:       { value: args.w / Math.max(1, args.h) },
       };
       dyeFs = createFullscreenScene(three, DYE_SHADER, dyeUniforms);
       dyeScene = dyeFs.scene;
@@ -319,7 +345,7 @@ function makeFluidAdvectionScene(): ThreeScene {
 
       const damp = 1 - Math.exp(-Math.max(0, dt) / 1.4);
       inject = mixNum(inject, injectTarget, damp);
-      injectTarget = Math.max(0, injectTarget - dt * 0.55);
+      injectTarget = Math.max(0, injectTarget - dt * 0.32);
       colorShift = mixNum(colorShift, colorShiftTarget, damp);
       colorShiftTarget = Math.max(0, colorShiftTarget - dt * 0.28);
 
@@ -331,6 +357,8 @@ function makeFluidAdvectionScene(): ThreeScene {
       curlStrength = mixNum(curlStrength, curlStrengthTarget + sectionStrength * 0.012, curlDamp);
       curlStrengthTarget = sectionStrength;
 
+      // Continuous trickle keeps dye visible even at late sections (rises mid-song)
+      const baseInject = 0.06 + sp * 0.04;
       // Audio energy breathes the injection rate
       const audioInject = audio.energy * 0.22 * params.impulse;
 
@@ -342,18 +370,28 @@ function makeFluidAdvectionScene(): ThreeScene {
 
       // Palette-driven dye colour
       const [r, g, b] = palette.dotColor;
+      const pointer = params.pointer;
+      const pointerPresence = pointer?.presence ?? 0;
+      const pointerVelocity = pointer?.velocity ?? 0;
+      const pointerX = pointer?.x ?? 0.5;
+      const pointerY = 1 - (pointer?.y ?? 0.5);
 
       // Update velocity uniforms
       velUniforms.uTime.value = time;
       velUniforms.uViscosity.value = tuning.viscosity - sp * 0.035;  // slightly less viscous at peak
       velUniforms.uCurlStrength.value = curlStrength;
+      (velUniforms.uPointerPos.value as import('three').Vector2).set(pointerX, pointerY);
+      (velUniforms.uPointerDelta.value as import('three').Vector2).set(pointer?.deltaX ?? 0, -(pointer?.deltaY ?? 0));
+      velUniforms.uPointerForce.value = pointerPresence * pointerVelocity;
 
       // Update dye uniforms
       dyeUniforms.uTime.value = time;
       dyeUniforms.uDissipation.value = tuning.dissipation + sp * 0.003;  // slower decay at peak
-      dyeUniforms.uInject.value = clamp01(inject + audioInject);
+      dyeUniforms.uInject.value = clamp01(inject + audioInject + baseInject);
       (dyeUniforms.uInjectPos.value as import('three').Vector2).set(injectX, injectY);
       (dyeUniforms.uInjectColor.value as import('three').Vector3).set(r / 255, g / 255, b / 255);
+      (dyeUniforms.uPointerPos.value as import('three').Vector2).set(pointerX, pointerY);
+      dyeUniforms.uPointerInject.value = pointerPresence * pointerVelocity;
 
       // Update display uniforms
       applyStandardUpdate(displayUniforms, dt, time, params, audio, exclusion, palette);
@@ -409,8 +447,11 @@ function makeFluidAdvectionScene(): ThreeScene {
         injectTarget = Math.min(1, injectTarget + 0.2 + intensity * 0.3);
       }
       if (event.type === 'section-cue') {
-        // Each new section pulses a fresh injection
-        injectTarget = Math.min(1, 0.4 + intensity * 0.3);
+        injectTarget = Math.min(1, 0.55 + intensity * 0.4);
+        curlStrengthTarget = Math.min(
+          curlStrengthTarget + 0.022 + intensity * 0.018,
+          tuning.peakCurlStrength * 1.6
+        );
         injectX = 0.2 + Math.random() * 0.6;
         injectY = 0.2 + Math.random() * 0.6;
       }
@@ -420,6 +461,8 @@ function makeFluidAdvectionScene(): ThreeScene {
       if (displayUniforms) {
         (displayUniforms.uResolution.value as import('three').Vector2).set(w, h);
       }
+      if (velUniforms) velUniforms.uAspect.value = w / Math.max(1, h);
+      if (dyeUniforms) dyeUniforms.uAspect.value = w / Math.max(1, h);
       if (velPP && dyePP) {
         const newVelW = Math.max(1, Math.round(w * VEL_SCALE));
         const newVelH = Math.max(1, Math.round(h * VEL_SCALE));

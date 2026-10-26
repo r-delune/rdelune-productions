@@ -155,18 +155,6 @@ export interface CongVerticalLandscapeStreamTuning {
   maxPulses: number;
 }
 
-export interface CongGreenGalaxyTuning {
-  kernel: 'cong-green-galaxy';
-  particleCount: number;
-  centerX: number;
-  centerY: number;
-  radiusScale: number;
-  speed: number;
-  trailAlpha: number;
-  rayAlpha: number;
-  maxBursts: number;
-}
-
 export interface CongHorizonFieldTuning {
   kernel: 'cong-horizon-field';
   particleCount: number;
@@ -302,7 +290,7 @@ export interface CongBatcapeGridTuning {
   flickerSpeed: number;   // default 0.9
 }
 
-export type CongGenerativeParticleMode = 'landscape-og' | 'cloud-again' | 'galaxy' | 'storm' | 'chord-storm';
+export type CongGenerativeParticleMode = 'landscape-og' | 'cloud-again' | 'storm' | 'chord-storm';
 export type CongGenerativeParticleEmitter = 'left-edge' | 'orbital-cloud' | 'field-scatter' | 'top-bottom' | 'center-burst';
 export type CongGenerativeParticleField = 'landscape-dual-flow' | 'curl-noise' | 'orbital-fall' | 'vertical-sway';
 export type CongGenerativeParticleRenderer = 'points' | 'streaks' | 'cloud-puffs' | 'mirrored-points' | 'rays' | 'chords';
@@ -391,18 +379,6 @@ export interface NativeAuroraVeilTuning {
   tensionMix: number;
 }
 
-export interface NativeGravityCurrentTuning {
-  kernel: 'native-gravity-current';
-  particleCount: number;
-  wellCountBase: number;
-  wellStrength: number;
-  swirl: number;
-  flowScale: number;
-  trailFade: number;
-  segmentAlpha: number;
-  rippleSpeed: number;
-}
-
 export interface ThreeCurlFlowTuning {
   kernel: 'three-curl-flow';
   maxInstances: number;     // upper bound on points (runtime drawRange scales below this)
@@ -422,6 +398,15 @@ export interface ThreeVolumetricFogTuning {
   driftSpeed: number;     // domain advection rate
   lightStrength: number;  // self-shadow scatter intensity
   additiveAlpha: number;  // emissive gain
+}
+
+export interface ThreeCanyonVistaTuning {
+  kernel: 'three-canyon-vista';
+  maxSteps: number;       // raymarch step ceiling (runtime uSteps scales below)
+  terrainScale: number;   // spatial frequency of the heightfield
+  relief: number;         // height amplitude (peak crest scale)
+  dollySpeed: number;     // forward camera speed
+  fogDensity: number;     // base atmospheric fog density
 }
 
 export interface ThreeCausticsTuning {
@@ -494,7 +479,6 @@ export type VisualizerTuningConfig =
   | CongLandscapeFlowTuning
   | CongLandscapeSpiralTuning
   | CongLateralCurrentTuning
-  | CongGreenGalaxyTuning
   | CongGenerativeParticlesTuning
   | CongHorizonFieldTuning
   | CongWaterlineShimmerTuning
@@ -507,9 +491,9 @@ export type VisualizerTuningConfig =
   | NativeReactionVeilTuning
   | NativeAttractorDriftTuning
   | NativeAuroraVeilTuning
-  | NativeGravityCurrentTuning
   | ThreeCurlFlowTuning
   | ThreeVolumetricFogTuning
+  | ThreeCanyonVistaTuning
   | ThreeCausticsTuning
   | ThreeArtworkFluxTuning
   | ThreeFlatMaterialTuning
@@ -625,7 +609,7 @@ export const VISUALIZER_TUNINGS = {
     seed: 9167,
     flowScale: 0.00185,
     noiseStrength: 1.08,
-    speed: 78,
+    speed: 46,
     trailAlpha: 0.038,
     particleAlpha: 0.58,
     pointSize: 0.48,
@@ -658,17 +642,6 @@ export const VISUALIZER_TUNINGS = {
     ridgeAlpha: 0.034,
     laneCount: 13,
     maxPulses: 9,
-  },
-  'cong-green-galaxy-default': {
-    kernel: 'cong-green-galaxy',
-    particleCount: 580,
-    centerX: 0.35,
-    centerY: 0.45,
-    radiusScale: 0.82,
-    speed: 0.72,
-    trailAlpha: 0.04,
-    rayAlpha: 0.055,
-    maxBursts: 6,
   },
   'cong-cloud-again-generative-default': {
     kernel: 'cong-generative-particles',
@@ -791,36 +764,6 @@ export const VISUALIZER_TUNINGS = {
     particleColorJitter: 26,
     overlays: ['random-chords'],
     maxBursts: 5,
-  },
-  'cong-green-galaxy-generative': {
-    kernel: 'cong-generative-particles',
-    mode: 'galaxy',
-    particleCount: 900,
-    seed: 3511,
-    noiseOctaves: 4,
-    noiseFalloff: 0.52,
-    fieldScale: 0.004,
-    fieldStrength: 0.96,
-    speed: 52,
-    trailAlpha: 0.044,
-    blendMode: 'screen',
-    emitter: 'field-scatter',
-    field: 'orbital-fall',
-    renderer: 'rays',
-    feedbackBlur: 0.4,
-    particleAlpha: 0.68,
-    pointSize: 1.6,
-    streakLength: 14,
-    centerX: 0.36,
-    centerY: 0.46,
-    laneSeparation: 0.5,
-    overlayAlpha: 0.075,
-    lineworkAlpha: 0.85,
-    particleStrokeAlpha: 0.08,
-    particleSizeJitter: 0.42,
-    particleColorJitter: 34,
-    overlays: ['grid-rays'],
-    maxBursts: 6,
   },
   'cong-top-bottom-storm-section-template': {
     kernel: 'cong-generative-particles',
@@ -1602,17 +1545,6 @@ export const VISUALIZER_TUNINGS = {
     veilAlpha: 0.42,
     tensionMix: 0.42,
   },
-  'native-gravity-current-default': {
-    kernel: 'native-gravity-current',
-    particleCount: 420,
-    wellCountBase: 2,
-    wellStrength: 60,
-    swirl: 0.65,
-    flowScale: 0.0024,
-    trailFade: 0.028,
-    segmentAlpha: 0.2,
-    rippleSpeed: 140,
-  },
   'three-curl-flow-default': {
     kernel: 'three-curl-flow',
     maxInstances: 180000,
@@ -1632,6 +1564,14 @@ export const VISUALIZER_TUNINGS = {
     lightStrength: 0.9,
     additiveAlpha: 1.15,
   },
+  'three-canyon-vista-default': {
+    kernel: 'three-canyon-vista',
+    maxSteps: 56,
+    terrainScale: 0.5,
+    relief: 1.4,
+    dollySpeed: 0.55,
+    fogDensity: 0.1,
+  },
   'three-caustics-default': {
     kernel: 'three-caustics',
     maxLayers: 5,
@@ -1639,15 +1579,15 @@ export const VISUALIZER_TUNINGS = {
     warpAmount: 0.5,
     flowSpeed: 0.12,
     sharpness: 3.0,
-    additiveAlpha: 0.7,
+    additiveAlpha: 1.2,
   },
   'three-artwork-flux-default': {
     kernel: 'three-artwork-flux',
     memory: 0.76,
     displacement: 0.78,
-    reveal: 0.82,
+    reveal: 0.55,
     chromaticAberration: 0.82,
-    vignette: 0.42,
+    vignette: 0.24,
   },
   'three-flat-material-default': {
     kernel: 'three-flat-material',
@@ -1749,12 +1689,6 @@ export function resolveCongVerticalLandscapeStreamTuning(tuning?: VisualizerTuni
     : VISUALIZER_TUNINGS['cong-vertical-landscape-stream-default'];
 }
 
-export function resolveCongGreenGalaxyTuning(tuning?: VisualizerTuningConfig): CongGreenGalaxyTuning {
-  return tuning?.kernel === 'cong-green-galaxy'
-    ? tuning
-    : VISUALIZER_TUNINGS['cong-green-galaxy-default'];
-}
-
 export function resolveCongGenerativeParticlesTuning(tuning?: VisualizerTuningConfig): CongGenerativeParticlesTuning {
   return tuning?.kernel === 'cong-generative-particles'
     ? tuning
@@ -1815,12 +1749,6 @@ export function resolveNativeAuroraVeilTuning(tuning?: VisualizerTuningConfig): 
     : VISUALIZER_TUNINGS['native-aurora-veil-default'];
 }
 
-export function resolveNativeGravityCurrentTuning(tuning?: VisualizerTuningConfig): NativeGravityCurrentTuning {
-  return tuning?.kernel === 'native-gravity-current'
-    ? tuning
-    : VISUALIZER_TUNINGS['native-gravity-current-default'];
-}
-
 export function resolveThreeCurlFlowTuning(tuning?: VisualizerTuningConfig): ThreeCurlFlowTuning {
   return tuning?.kernel === 'three-curl-flow'
     ? tuning
@@ -1837,6 +1765,12 @@ export function resolveThreeCausticsTuning(tuning?: VisualizerTuningConfig): Thr
   return tuning?.kernel === 'three-caustics'
     ? tuning
     : VISUALIZER_TUNINGS['three-caustics-default'];
+}
+
+export function resolveThreeCanyonVistaTuning(tuning?: VisualizerTuningConfig): ThreeCanyonVistaTuning {
+  return tuning?.kernel === 'three-canyon-vista'
+    ? tuning
+    : VISUALIZER_TUNINGS['three-canyon-vista-default'];
 }
 
 export function resolveThreeArtworkFluxTuning(tuning?: VisualizerTuningConfig): ThreeArtworkFluxTuning {

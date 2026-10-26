@@ -57,11 +57,11 @@ export function createSmokePlanes(): Visualizer {
   // Per-section dot size multipliers (grow heavier toward peak)
   const PHASE_SIZE: readonly number[] = [0.85, 1.0, 1.25, 1.05];
   // Per-section base speed multipliers
-  const PHASE_SPEED: readonly number[] = [0.82, 0.95, 1.18, 0.88];
+  const PHASE_SPEED: readonly number[] = [0.95, 1.08, 1.32, 1.0];
 
   let sectionHue = 0;
   let sectionSize = 0.85;
-  let sectionSpeed = 0.82;
+  let sectionSpeed = 0.95;
 
   return {
     setup(_q, _w, _h, _palette) {
@@ -142,8 +142,11 @@ export function createSmokePlanes(): Visualizer {
         const baseAlpha = layer.alpha * (0.72 + curParams.density * 0.9 + activity * 0.28 + curAudio.energy * 0.28 + cue.focus * 0.32 + cue.sweep * 0.16 + gust * 0.18) * Math.max(0, Math.min(1, 1 + densityStep * 0.5));
 
         const step = layer.gridStep;
-        const cols = Math.ceil(w / step);
-        const rows = Math.ceil(h / step);
+        const cols = Math.ceil(w / step) + 2;
+        const rows = Math.ceil(h / step) + 2;
+        const travelSpeed = (4 + depth * 11) * (0.78 + sectionSpeed * 0.24 + curParams.drift * 0.42 + activity * 0.2);
+        const travelX = time * travelSpeed * reverse;
+        const wrapWidth = w + step * 2;
 
         // Batch all dots for this layer into a single path; scale by reveal alpha
         const a = Math.min(baseAlpha * (1.5 + cue.sizeProgress(offset) * 0.32) * layerAlpha, 0.08);
@@ -151,9 +154,9 @@ export function createSmokePlanes(): Visualizer {
         ctx.beginPath();
         let drawn = false;
 
-        for (let row = 0; row < rows; row++) {
+        for (let row = -1; row < rows; row++) {
           const py = row * step;
-          for (let col = 0; col < cols; col++) {
+          for (let col = -1; col < cols; col++) {
             const px = col * step;
 
             const n = q.noise(
@@ -165,15 +168,18 @@ export function createSmokePlanes(): Visualizer {
             if (n < thresh) continue;
 
             // Exclusion zone — probabilistic density skip
-            const excl = computeExclusion(px, py, curExclusion);
+            const billowX = Math.sin(time * (0.24 + layer.speed * 0.55) + offset + row * 0.035) * (7 + depth * 16 + curParams.drift * 8);
+            const billowY = Math.cos(time * (0.18 + layer.speed * 0.42) + offset + col * 0.022) * (4 + depth * 11 + curParams.turbulence * 7);
+            const drawX = ((px + travelX + billowX + step) % wrapWidth + wrapWidth) % wrapWidth - step;
+            const drawY = py + billowY;
+
+            const excl = computeExclusion(drawX, drawY, curExclusion);
             if (excl.density < Math.random()) continue;
 
-            const parallaxX = Math.sin(time * (0.19 + layer.speed) + offset + row * 0.025) * depth * (2.5 + curParams.drift * 5);
-            const parallaxY = Math.cos(time * (0.13 + layer.speed) + offset + col * 0.018) * depth * (1.5 + curParams.turbulence * 4);
             const r = layer.dotSize * sectionSize * (0.6 + (n - thresh) * 2 + cue.bloom * 0.35 + curAudio.highs * 0.14 + gust * 0.18);
 
-            ctx.moveTo(px + parallaxX + r, py + parallaxY);
-            ctx.arc(px + parallaxX, py + parallaxY, r, 0, Math.PI * 2);
+            ctx.moveTo(drawX + r, drawY);
+            ctx.arc(drawX, drawY, r, 0, Math.PI * 2);
             drawn = true;
           }
         }

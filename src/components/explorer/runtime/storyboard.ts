@@ -11,6 +11,24 @@ import type {
   VisualStoryboard,
 } from './types';
 
+/**
+ * COHESION BIAS (default OFF — opt-in, A/B only).
+ *
+ * The storyboard normally forces variety: each section prefers a DIFFERENT
+ * visual family than the last (deprioritizeSameFamily) and never repeats the
+ * exact previous recipe. For the ambient catalogue that can read as
+ * channel-flipping. Flip this to `true` to invert the bias — sections then
+ * prefer STAYING in the same family (and may repeat the same kernel), letting a
+ * track read as one continuous world whose arc is carried by uSectionProgress +
+ * palette shifts rather than kernel swaps.
+ *
+ * Scope note: this only affects the authored-storyboard path here. The
+ * generative-variety path (runtime/plans.ts, used by most generated tracks)
+ * has its own sequencing and would need the same treatment to fully change the
+ * catalogue feel — see CONTINUUM_HANDOFF.md.
+ */
+export const COHESION_BIAS = false;
+
 export const EXPLORER_SCENE_PROFILES: readonly ExplorerSceneProfile[] = [
   'ink',
   'smoke',
@@ -148,9 +166,9 @@ function getCloudAgainRoleCandidates(role: ExplorerStoryboardSectionRole, storyb
     intro: ['cong-cloud-again-intro-generative', 'cong-cloud-orbit'],
     establish: ['cong-cloud-again-intro-generative', 'cong-cloud-orbit'],
     drift: ['cong-cloud-orbit', 'cong-landscape-flow'],
-    build: ['cong-green-galaxy', 'cong-landscape-flow'],
-    lift: ['cong-rain-shower', 'cong-green-galaxy'],
-    peak: ['cong-green-galaxy', 'cong-rain-shower', 'cong-waterline-shimmer', 'three-artwork-flux'],
+    build: ['cong-landscape-flow'],
+    lift: ['cong-rain-shower'],
+    peak: ['cong-rain-shower', 'cong-waterline-shimmer', 'three-artwork-flux'],
     release: ['cong-cloud-orbit', 'cong-waterline-shimmer'],
     afterglow: ['cong-cloud-again-intro-generative', 'native-smoke-planes'],
   };
@@ -159,18 +177,20 @@ function getCloudAgainRoleCandidates(role: ExplorerStoryboardSectionRole, storyb
   return semanticIds[role].filter((recipeId) => poolIds.has(recipeId));
 }
 
-// Each section role in a mosh-arc gets a distinct pool of mosh variants,
-// ordered from most preferred to fallback. pickCandidate() selects
-// deterministically per track and avoids repeating the previous section.
+// Mosh-arc keeps every section inside the restrained artwork-mosh family.
+// `three-artwork-flux` is currently the only production recipe in that family
+// (the cong-artwork-mosh-* variants were retired in "Prune weak production
+// visuals" and must not be referenced here — without a live recipe they fall
+// through to the generic profile pool and break mosh-arc containment).
 const MOSH_ROLE_POOLS: Readonly<Record<ExplorerStoryboardSectionRole, readonly ExplorerRecipeId[]>> = {
-  intro:     ['cong-artwork-mosh-veil-drift', 'cong-artwork-mosh-minimal-ghost', 'cong-artwork-mosh-soft-scan'],
-  establish: ['cong-artwork-mosh-left-flow', 'cong-artwork-mosh-soft-scan', 'cong-artwork-mosh-slit-scan'],
-  drift:     ['cong-artwork-mosh-minimal-ghost', 'cong-artwork-mosh-veil-drift', 'cong-artwork-mosh-soft-scan'],
-  build:     ['three-artwork-flux', 'cong-artwork-mosh-pixel-sort', 'cong-artwork-mosh-left-flow', 'cong-artwork-mosh-storm-open'],
-  lift:      ['cong-artwork-mosh-slit-scan', 'cong-artwork-mosh-storm-open', 'three-artwork-flux', 'cong-artwork-mosh-pixel-sort'],
-  peak:      ['cong-artwork-mosh-fracture', 'cong-artwork-mosh-pixel-sort', 'cong-artwork-mosh-storm-open', 'three-artwork-flux'],
-  release:   ['cong-artwork-mosh-slit-scan', 'three-artwork-flux', 'cong-artwork-mosh-pixel-islands', 'cong-artwork-mosh-left-flow'],
-  afterglow: ['cong-artwork-mosh-soft-scan', 'cong-artwork-mosh-veil-drift', 'cong-artwork-mosh-minimal-ghost'],
+  intro:     ['three-artwork-flux'],
+  establish: ['three-artwork-flux'],
+  drift:     ['three-artwork-flux'],
+  build:     ['three-artwork-flux'],
+  lift:      ['three-artwork-flux'],
+  peak:      ['three-artwork-flux'],
+  release:   ['three-artwork-flux'],
+  afterglow: ['three-artwork-flux'],
 };
 
 function getMoshRoleCandidates(role: ExplorerStoryboardSectionRole, storyboard?: VisualStoryboard): ExplorerRecipeId[] {
@@ -269,13 +289,34 @@ function deprioritizeSameFamily(candidates: readonly ExplorerRecipeId[], lastFam
   return preferred.length > 0 ? [...preferred, ...deprioritized] : deprioritized;
 }
 
+/** Inverse of deprioritizeSameFamily: put same-family candidates FIRST so the
+ *  next section tends to stay in the current world. Used when COHESION_BIAS is on. */
+function prioritizeSameFamily(candidates: readonly ExplorerRecipeId[], lastFamily: string | undefined): ExplorerRecipeId[] {
+  if (!lastFamily) return [...candidates];
+  const sameFamily: ExplorerRecipeId[] = [];
+  const others: ExplorerRecipeId[] = [];
+  for (const recipeId of candidates) {
+    const recipe = getExplorerRecipe(recipeId);
+    if (getProfileFamily(recipe.sceneProfile) === lastFamily) sameFamily.push(recipeId);
+    else others.push(recipeId);
+  }
+  return sameFamily.length > 0 ? [...sameFamily, ...others] : others;
+}
+
 function pickCandidate(
   candidates: readonly ExplorerRecipeId[],
   previousRecipeId: ExplorerRecipeId | undefined,
   variance: ExplorerStoryboardVariance | undefined,
   seed: number,
+  allowRepeat = false,
 ): ExplorerRecipeId | undefined {
   if (!candidates.length) return undefined;
+  // Continuity mode: allow the same recipe to carry across sections so a track
+  // can stay one world (the arc comes from uSectionProgress + palette, not swaps).
+  if (allowRepeat) {
+    const startIndex = seed % candidates.length;
+    return candidates[startIndex];
+  }
   if (variance === 'low') {
     // Low variance: limit to the top 2 candidates but use seed to pick between them
     // so different tracks see variety within the same role pool.
@@ -329,13 +370,18 @@ export function buildStoryboardSequence(
     const anchored = guardIntro && rawAnchor && isImageDependentRecipe(rawAnchor) ? undefined : rawAnchor;
     const rawCandidates = getRoleCandidates(role, storyboard)
       .filter((recipeId) => !guardIntro || !isImageDependentRecipe(recipeId));
-    // Soft-deprioritize same visual family as the previous section
-    const candidates = anchored ? rawCandidates : deprioritizeSameFamily(rawCandidates, lastFamily);
+    // Family ordering vs the previous section: normally deprioritize same family
+    // (variety); under COHESION_BIAS, prioritize it (continuity).
+    const candidates = anchored
+      ? rawCandidates
+      : (COHESION_BIAS
+          ? prioritizeSameFamily(rawCandidates, lastFamily)
+          : deprioritizeSameFamily(rawCandidates, lastFamily));
     const introFallbackRecipeId = policy?.introFallbackRecipeId && isProductionReadyRecipe(policy.introFallbackRecipeId)
       ? policy.introFallbackRecipeId
       : fallbackRecipeId;
     const recipeId = anchored
-      ?? pickCandidate(candidates, steps[index - 1], storyboard.variance, seedBase + index * 17)
+      ?? pickCandidate(candidates, steps[index - 1], storyboard.variance, seedBase + index * 17, COHESION_BIAS)
       ?? (guardIntro ? introFallbackRecipeId : undefined)
       ?? fallbackRecipeId
       ?? getDefaultExplorerRecipe().id;

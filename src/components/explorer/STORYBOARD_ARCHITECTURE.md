@@ -112,7 +112,7 @@ For priority tracks:
       "variance": "medium",
       "anchors": {
         "intro": "cong-cloud-again-generative",
-        "peak": "cong-green-galaxy",
+        "peak": "cong-rain-shower",
         "outro": "cong-waterline-shimmer"
       }
     }

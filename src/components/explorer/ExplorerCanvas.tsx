@@ -5,6 +5,7 @@ import useQ5 from '@/hooks/useQ5';
 import { EMPTY_AUDIO_SIGNAL, clamp01 } from './audio-signal';
 import type { AudioSignal } from './audio-signal';
 import { applyAudioSignal, applyEvent, createLerpParams, decayTargets, updateLerpParams } from './params';
+import { getSectionEasing, type EaseFn, type SectionEasing } from './runtime/section-easing';
 import type { LerpParams } from './params';
 import { applyPaletteHueShift, applyPaletteTransform, clonePalette, generatePalette, type Palette } from './palette';
 import { getVisualizerTuning } from './tuning';
@@ -12,7 +13,7 @@ import { EXPLORER_DESKTOP_BREAKPOINT, EXPLORER_PANEL_SOFT_EDGE, EXPLORER_TABLET_
 import { getBeatGridPosition, getSectionIndex, buildTrackVisualPlan, getSectionRecipe } from './runtime/plans';
 import { GRAIN_COUNT, getDefaultExplorerRecipe } from './runtime/recipes';
 import type { BeatGrid, ExplorerRecipe, ExplorerSceneProfile, SectionVisualStep, TrackVisualConfig, TrackVisualPlan } from './runtime/types';
-import type { ExclusionRect, VisualEvent, VisualParams, Visualizer } from './visualizer';
+import type { ExclusionRect, PointerSignal, VisualEvent, VisualParams, Visualizer } from './visualizer';
 import { createVisualizer } from './visualizers/registry';
 import { preloadArtworkImage } from './artwork-cache';
 import { getProductionPlaybackMode } from './playback-capability';
@@ -30,6 +31,14 @@ export { getCardStyle } from './runtime/plans';
 function smoothstep01(value: number): number {
   const t = clamp01(value);
   return t * t * (3 - 2 * t);
+}
+
+// Softer S-curve (Perlin smootherstep) for section crossfades: gentler ramp in
+// and out than smoothstep, so a kernel change reads as a slow dissolve rather
+// than a cut. Used only for the section transition blend.
+function smootherstep01(value: number): number {
+  const t = clamp01(value);
+  return t * t * t * (t * (t * 6 - 15) + 10);
 }
 
 function formatTimelineTime(time: number): string {
@@ -581,9 +590,13 @@ const SCENE_PROFILES: Readonly<Record<ExplorerSceneProfile, SceneProfile>> = {
   },
 };
 
-const SKETCH_MERGE_TRANSITION_SECONDS = 1.55;
-const SKETCH_CROSSFADE_SECONDS = 4.2;
-const SAME_SKETCH_MORPH_SECONDS = 1.8;
+// Section transition lengths. Lengthened for the ambient catalogue so a kernel
+// change between sections reads as a slow dissolve, not a cut (the experience is
+// "one world that breathes"). Cross-kernel crossfades are the longest because
+// they swap renderers; same-sketch morphs can be a touch quicker.
+const SKETCH_MERGE_TRANSITION_SECONDS = 2.6;
+const SKETCH_CROSSFADE_SECONDS = 7.5;
+const SAME_SKETCH_MORPH_SECONDS = 2.8;
 
 function getStepTransitionSeconds(step?: SectionVisualStep): number {
   const transitionMs = step?.transitionMs;
@@ -598,10 +611,10 @@ function createLivingAudioSignal(time: number, source: AudioSignal, activity: nu
   const shimmer = 0.5 + Math.sin(time * 0.84 + 0.8) * 0.5;
 
   return {
-    energy: clamp01((0.06 + drift * 0.045) * idle + source.energy * (0.88 + playing * 0.18)),
-    bass: clamp01((0.05 + Math.sin(time * 0.43 + 1.2) * 0.022) * idle + source.bass * (0.9 + playing * 0.12)),
-    mids: clamp01((0.07 + Math.sin(time * 0.61 + 2.4) * 0.028) * idle + source.mids * (0.9 + playing * 0.12)),
-    highs: clamp01((0.045 + shimmer * 0.035) * idle + source.highs * (0.88 + playing * 0.16)),
+    energy: clamp01((0.22 + drift * 0.10) * idle + source.energy * (0.88 + playing * 0.18)),
+    bass: clamp01((0.16 + Math.sin(time * 0.43 + 1.2) * 0.05) * idle + source.bass * (0.9 + playing * 0.12)),
+    mids: clamp01((0.20 + Math.sin(time * 0.61 + 2.4) * 0.06) * idle + source.mids * (0.9 + playing * 0.12)),
+    highs: clamp01((0.13 + shimmer * 0.06) * idle + source.highs * (0.88 + playing * 0.16)),
     transient: clamp01(pulse * 0.12 * idle + source.transient * (0.95 + playing * 0.18)),
     activity: clamp01(activity),
     playing: clamp01(playing),
@@ -668,6 +681,12 @@ interface Stage {
   cueWashes: StageCueWash[];
   cueSweeps: StageCueSweep[];
   cueTint: StageCueTint | null;
+  sectionHueOffset: number;
+  sectionHueTarget: number;
+  sectionSatOffset: number;
+  sectionSatTarget: number;
+  sectionBriOffset: number;
+  sectionBriTarget: number;
 }
 
 interface MobileParticle {
@@ -940,6 +959,7 @@ function applySharedModulation(
   playbackTime: number,
   playEnergy: number,
   cueState: CueState,
+  curve: EaseFn,
 ): void {
   decayTargets(lerpParams, baseParams, dt);
   applyAudioSignal(lerpParams, baseParams, audioSignal, trackProgress, playbackTime);
@@ -977,7 +997,12 @@ function applySharedModulation(
     Math.min(1, baseParams.drift + (0.012 + slowPhase * 0.022) * progressionPresence),
   );
 
-  const cueBlend = cueState.approach * 0.72 + cueState.release * 0.4;
+  // Ease the section-boundary swell through the role's musical curve so the
+  // approach/release feels shaped (anticipation on a build, quick exhale on a
+  // release) rather than the raw linear lead-in.
+  const easedApproach = curve(cueState.approach);
+  const easedRelease = curve(cueState.release);
+  const cueBlend = easedApproach * 0.72 + easedRelease * 0.4;
   if (cueBlend <= 0) return;
 
   lerpParams.glow.target = Math.max(
@@ -990,7 +1015,7 @@ function applySharedModulation(
   );
   lerpParams.density.target = Math.max(
     lerpParams.density.target,
-    Math.min(1, baseParams.density + cueState.release * (0.03 + cueState.density * 0.04)),
+    Math.min(1, baseParams.density + easedRelease * (0.03 + cueState.density * 0.04)),
   );
   lerpParams.drift.target = Math.max(
     lerpParams.drift.target,
@@ -998,11 +1023,11 @@ function applySharedModulation(
   );
   lerpParams.shimmer.target = Math.max(
     lerpParams.shimmer.target,
-    Math.min(1, baseParams.shimmer + cueBlend * 0.06 + cueState.release * 0.06),
+    Math.min(1, baseParams.shimmer + cueBlend * 0.06 + easedRelease * 0.06),
   );
   lerpParams.impulse.target = Math.max(
     lerpParams.impulse.target,
-    Math.min(1, baseParams.impulse + cueState.release * 0.12),
+    Math.min(1, baseParams.impulse + easedRelease * 0.12),
   );
 
   const cueHueTarget = baseParams.hueShift + (cueState.sectionProgress - 0.5) * (4 + cueState.density * 5);
@@ -1228,6 +1253,9 @@ function drawManagedStageImage(
   time: number,
   seed: number,
   compositeOperation: GlobalCompositeOperation = 'source-over',
+  offsetX = 0,
+  offsetY = 0,
+  scale = 1,
 ): void {
   if (alpha <= 0.001) return;
 
@@ -1236,6 +1264,11 @@ function drawManagedStageImage(
 
   ctx.save();
   ctx.globalAlpha = alpha;
+  if (offsetX !== 0 || offsetY !== 0 || scale !== 1) {
+    ctx.translate(width * 0.5 + offsetX, height * 0.5 + offsetY);
+    ctx.scale(scale, scale);
+    ctx.translate(-width * 0.5, -height * 0.5);
+  }
 
   if (presence >= 0.995) {
     ctx.filter = 'none';
@@ -1536,6 +1569,8 @@ export default function ExplorerCanvas({
     let previousTimeValue = 0;
     let previousSectionIndex = -1;
     let previousRecipeId = '';
+    let sectionHueShift = 0;
+    let sectionHueTarget = 0;
     let pageVisible = document.visibilityState !== 'hidden';
     let mobilePlanAlbumName = '';
     let mobilePlanTrackTitle = '';
@@ -1625,6 +1660,8 @@ export default function ExplorerCanvas({
       previousTimeValue = currentTimeValue;
       if (previousSectionIndex >= 0 && sectionIndex !== previousSectionIndex) {
         sectionFlash = 1;
+        // Deterministic hue target per section: spread across ±60° with good variety
+        sectionHueTarget = ((sectionIndex * 29) % 120) - 60;
       }
       if (previousRecipeId && recipe.id !== previousRecipeId) {
         sectionFlash = 1;
@@ -1632,6 +1669,10 @@ export default function ExplorerCanvas({
       previousSectionIndex = sectionIndex;
       previousRecipeId = recipe.id;
       sectionFlash = Math.max(0, sectionFlash - dt * (reduced ? 1.4 : 2.4));
+      // Lerp toward section hue target (~1.7s half-life); snap when reduced-motion.
+      sectionHueShift = reduced
+        ? sectionHueTarget
+        : sectionHueShift + (sectionHueTarget - sectionHueShift) * Math.min(1, dt * 0.4);
       barPulse = Math.max(0, barPulse - dt * (reduced ? 3.2 : 5.4));
 
       const playingLevel = playingRef.current ? 1 : 0;
@@ -1646,7 +1687,7 @@ export default function ExplorerCanvas({
       const palette = clonePalette(basePalette);
       applyPaletteTransform(palette, basePalette, {
         ...(step?.palette ?? {}),
-        hueShift: (step?.palette?.hueShift ?? 0) + (step?.params?.hueShift ?? recipe.baseParams.hueShift ?? 0) * 0.45,
+        hueShift: (step?.palette?.hueShift ?? 0) + (step?.params?.hueShift ?? recipe.baseParams.hueShift ?? 0) * 0.45 + sectionHueShift,
       });
       const [bgR, bgG, bgB] = palette.bgDark;
       const [midR, midG, midB] = palette.bgMid;
@@ -1775,6 +1816,91 @@ export default function ExplorerCanvas({
     let vignetteStrengthKey = -1;
     let vignetteSizeKey = -1;
 
+    // Pointer response is deliberately compositor-level: every Canvas2D and
+    // Three sketch receives the same restrained sense of depth without adding
+    // input branches to individual kernels. Mouse/pen only; touch and reduced
+    // motion retain the authored scene unchanged.
+    let pointerTargetX = 0.5;
+    let pointerTargetY = 0.5;
+    let pointerX = 0.5;
+    let pointerY = 0.5;
+    let pointerPresenceTarget = 0;
+    let pointerPresence = 0;
+    let pointerVelocityTarget = 0;
+    let pointerVelocity = 0;
+    let pointerDeltaTargetX = 0;
+    let pointerDeltaTargetY = 0;
+    let pointerDeltaX = 0;
+    let pointerDeltaY = 0;
+    let pointerLastX = 0;
+    let pointerLastY = 0;
+    let pointerLastAt = 0;
+
+    // Viewer agency: a tap on the background (not on UI) lets the world respond with a
+    // gentle bloom. It reuses the authored visual-event system rather than adding input
+    // branches to kernels, and stays restrained — throttled, drained in the draw loop,
+    // mouse/pen only, disabled under reduced motion.
+    let pendingTapSurges = 0;
+    let lastTapAt = 0;
+
+    const onPointerTap = (event: PointerEvent) => {
+      if (reduced) return;
+      if (event.pointerType !== 'mouse' && event.pointerType !== 'pen') return;
+      const target = event.target as Node | null;
+      if (!target || !(target === container || container.contains(target))) return;
+      const now = performance.now();
+      if (now - lastTapAt < 360) return;
+      lastTapAt = now;
+      pendingTapSurges = Math.min(pendingTapSurges + 1, 2);
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (reduced || (event.pointerType !== 'mouse' && event.pointerType !== 'pen')) return;
+      const bounds = container.getBoundingClientRect();
+      const inside = event.clientX >= bounds.left && event.clientX <= bounds.right
+        && event.clientY >= bounds.top && event.clientY <= bounds.bottom;
+      pointerPresenceTarget = inside ? 1 : 0;
+      if (!inside) return;
+
+      pointerTargetX = clamp01((event.clientX - bounds.left) / Math.max(1, bounds.width));
+      pointerTargetY = clamp01((event.clientY - bounds.top) / Math.max(1, bounds.height));
+      const eventTime = performance.now();
+      if (pointerLastAt > 0) {
+        const elapsed = Math.max(8, eventTime - pointerLastAt);
+        const moveX = event.clientX - pointerLastX;
+        const moveY = event.clientY - pointerLastY;
+        const distance = Math.hypot(moveX, moveY);
+        pointerVelocityTarget = clamp01((distance / elapsed) * 0.5);
+        pointerDeltaTargetX = Math.max(-1, Math.min(1, moveX / Math.max(24, bounds.width * 0.035)));
+        pointerDeltaTargetY = Math.max(-1, Math.min(1, moveY / Math.max(24, bounds.height * 0.035)));
+      }
+      pointerLastX = event.clientX;
+      pointerLastY = event.clientY;
+      pointerLastAt = eventTime;
+    };
+
+    const releasePointer = () => {
+      pointerPresenceTarget = 0;
+      pointerVelocityTarget = 0;
+      pointerDeltaTargetX = 0;
+      pointerDeltaTargetY = 0;
+      pointerLastAt = 0;
+    };
+
+    const pointerSignal: PointerSignal = {
+      x: 0.5,
+      y: 0.5,
+      presence: 0,
+      velocity: 0,
+      deltaX: 0,
+      deltaY: 0,
+    };
+
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('pointerdown', onPointerTap, { passive: true });
+    window.addEventListener('blur', releasePointer);
+    document.addEventListener('mouseleave', releasePointer);
+
     function buildGrainCanvases(cw: number, ch: number): void {
       // Render at half resolution — grain texture scales fine and halves memory.
       const gw = Math.max(64, Math.round(cw * 0.5));
@@ -1890,19 +2016,17 @@ export default function ExplorerCanvas({
         activeStage = dispatchEventToStage(activeStage, q, width, height, boostedEvent);
         outgoingStage = dispatchEventToStage(outgoingStage, q, width, height, boostedEvent);
 
-        // Inject a subtle section-scoped palette hue rotation so each structural
-        // section has a distinct color temperature without jarring jumps.
-        const sectionHueShift = ((sectionIndex * 13) % 40) - 20;
-        const hueRotateEvent: VisualEvent = {
-          t: boostedEvent.t,
-          intensity: 0.48,
-          type: 'palette-morph',
-          target: 'terrain',
-          durationMs: 9200,
-          palette: { hueShift: sectionHueShift, saturation: 1.05 },
-        };
-        activeStage = dispatchEventToStage(activeStage, q, width, height, hueRotateEvent);
-        outgoingStage = dispatchEventToStage(outgoingStage, q, width, height, hueRotateEvent);
+        // Set deterministic section ambient palette targets, lerped in renderStage independently
+        // of lerpParams.hueShift so applySharedModulation cannot overwrite it.
+        const sectionHueShift = ((sectionIndex * 29) % 120) - 60;
+        const sectionSat      = 1 + (((sectionIndex * 17) % 30) - 15) / 100;
+        const sectionBri      = 1 + (((sectionIndex *  7) % 20) - 10) / 100;
+        for (const s of [activeStage, outgoingStage]) {
+          if (!s) continue;
+          s.sectionHueTarget = clampParam(sectionHueShift, -60, 60);
+          s.sectionSatTarget = sectionSat;
+          s.sectionBriTarget = sectionBri;
+        }
       }
       lastCueCount = Math.max(lastCueCount, toSectionIndex);
     }
@@ -1960,6 +2084,12 @@ export default function ExplorerCanvas({
         cueWashes: [],
         cueSweeps: [],
         cueTint: null,
+        sectionHueOffset: 0,
+        sectionHueTarget: 0,
+        sectionSatOffset: 1,
+        sectionSatTarget: 1,
+        sectionBriOffset: 1,
+        sectionBriTarget: 1,
       };
     }
 
@@ -2093,6 +2223,7 @@ export default function ExplorerCanvas({
       exclusion: ExclusionRect,
       playbackTime: number,
       cueState: CueState,
+      easing: SectionEasing,
     ): { stage: Stage | null; params: VisualParams | null } {
       if (!stage) return { stage: null, params: null };
 
@@ -2106,9 +2237,12 @@ export default function ExplorerCanvas({
           playbackTime,
           playEnergy,
           cueState,
+          easing.curve,
         );
 
-        const params = updateLerpParams(stage.lerpParams, dt);
+        // Role-aware lerp speed: a build ramps deliberately, a peak arrives
+        // quickly, a release/afterglow settles then lingers.
+        const params = updateLerpParams(stage.lerpParams, dt, easing.lerpSpeed);
         // Zero-touch quality tier: scale the frame-local snapshot (never the
         // persistent lerp targets) so most kernels draw lighter under load.
         const quality = getQualityScale();
@@ -2116,7 +2250,17 @@ export default function ExplorerCanvas({
           params.density *= quality;
           params.shimmer *= 0.5 + quality * 0.5;
         }
-        applyPaletteHueShift(stage.palette, stage.basePalette, params.hueShift);
+        params.pointer = pointerSignal;
+        // Lerp section ambient palette (hue + sat + bri) independently (~2.5s settle); snap when reduced-motion.
+        const hueSpeed = reduced ? 1 : Math.min(1, dt * 0.28);
+        stage.sectionHueOffset += (stage.sectionHueTarget - stage.sectionHueOffset) * hueSpeed;
+        stage.sectionSatOffset += (stage.sectionSatTarget - stage.sectionSatOffset) * hueSpeed;
+        stage.sectionBriOffset += (stage.sectionBriTarget - stage.sectionBriOffset) * hueSpeed;
+        applyPaletteTransform(stage.palette, stage.basePalette, {
+          hueShift:   params.hueShift + stage.sectionHueOffset,
+          saturation: stage.sectionSatOffset,
+          brightness: stage.sectionBriOffset,
+        });
         stage.viz.update(dt, params, audioSignal, exclusion);
         stage.viz.draw(q, stage.ctx);
         updateStageCueEffects(stage, dt);
@@ -2240,6 +2384,24 @@ export default function ExplorerCanvas({
       if (!reduced && minFrameMs === 1000 / 45) reportFrame(frameElapsedMs);
 
       const frameDt = reduced ? Math.min(dt, 0.008) : dt;
+      const pointerPositionBlend = 1 - Math.exp(-frameDt / 0.7);
+      const pointerPresenceBlend = 1 - Math.exp(-frameDt / (pointerPresenceTarget > pointerPresence ? 0.9 : 1.8));
+      const pointerVelocityBlend = 1 - Math.exp(-frameDt / (pointerVelocityTarget > pointerVelocity ? 0.14 : 0.8));
+      pointerX += (pointerTargetX - pointerX) * pointerPositionBlend;
+      pointerY += (pointerTargetY - pointerY) * pointerPositionBlend;
+      pointerPresence += (pointerPresenceTarget - pointerPresence) * pointerPresenceBlend;
+      pointerVelocity += (pointerVelocityTarget - pointerVelocity) * pointerVelocityBlend;
+      pointerDeltaX += (pointerDeltaTargetX - pointerDeltaX) * pointerVelocityBlend;
+      pointerDeltaY += (pointerDeltaTargetY - pointerDeltaY) * pointerVelocityBlend;
+      pointerVelocityTarget *= Math.exp(-frameDt / 0.2);
+      pointerDeltaTargetX *= Math.exp(-frameDt / 0.16);
+      pointerDeltaTargetY *= Math.exp(-frameDt / 0.16);
+      pointerSignal.x = pointerX;
+      pointerSignal.y = pointerY;
+      pointerSignal.presence = pointerPresence;
+      pointerSignal.velocity = pointerVelocity;
+      pointerSignal.deltaX = pointerDeltaX;
+      pointerSignal.deltaY = pointerDeltaY;
 
       const sectionTimesValue = sectionTimesRef.current;
       const needsRebuild = albumNameRef.current !== currentAlbumName
@@ -2337,7 +2499,7 @@ export default function ExplorerCanvas({
 
       const reviewTime = now * 0.001;
       const playingLevel = playingRef.current ? playEnergy : 0;
-      const activityLevel = reviewMotion ? Math.max(playEnergy, 0.72) : playEnergy;
+      const activityLevel = reviewMotion ? Math.max(playEnergy, 0.72) : Math.max(0.60, playEnergy);
       const audioSignal = createLivingAudioSignal(reviewTime, playingRef.current ? audioSignalRef.current : EMPTY_AUDIO_SIGNAL, activityLevel, playingLevel);
       const playbackTime = currentTimeValue + reviewTime * (1 - playingLevel * 0.72);
 
@@ -2390,9 +2552,10 @@ export default function ExplorerCanvas({
         outgoingStage = dispatchEventToStage(outgoingStage, q, width, height, onsetEvent);
       }
 
-      const activeRender = renderStage(activeStage, q, frameDt, audioSignal, exclusion, playbackTime, cueState);
+      const sectionEasing = getSectionEasing(getPlanStep(currentSectionIndex)?.role);
+      const activeRender = renderStage(activeStage, q, frameDt, audioSignal, exclusion, playbackTime, cueState, sectionEasing);
       activeStage = activeRender.stage;
-      const outgoingRender = renderStage(outgoingStage, q, frameDt, audioSignal, exclusion, playbackTime, cueState);
+      const outgoingRender = renderStage(outgoingStage, q, frameDt, audioSignal, exclusion, playbackTime, cueState, sectionEasing);
       outgoingStage = outgoingRender.stage;
 
       if (!activeStage) {
@@ -2405,8 +2568,11 @@ export default function ExplorerCanvas({
       const [fadeR, fadeG, fadeB] = getThemeTransitionColor(activePalette);
       const sceneProfile = SCENE_PROFILES[activeStage.recipe.sceneProfile];
       const overlayScale = getOverlayScale(activeStage.recipe.sceneProfile);
+      const pointerOffsetX = (pointerX - 0.5) * 18 * pointerPresence;
+      const pointerOffsetY = (pointerY - 0.5) * 13 * pointerPresence;
+      const pointerScale = 1 + pointerPresence * 0.012;
       let activeCompositeAlpha = 1;
-      const transitionBlend = outgoingStage ? smoothstep01(transitionProgress) : 1;
+      const transitionBlend = outgoingStage ? smootherstep01(transitionProgress) : 1;
 
       if (outgoingStage) {
         const blendedPalette = clonePalette(activePalette);
@@ -2418,7 +2584,7 @@ export default function ExplorerCanvas({
       }
       if (outgoingStage) {
         transitionProgress = Math.min(1, transitionProgress + frameDt / transitionDuration);
-        const transitionBlend = smoothstep01(transitionProgress);
+        const transitionBlend = smootherstep01(transitionProgress);
         const outgoingAlpha = 1 - transitionBlend;
         const incomingAlpha = transitionBlend;
 
@@ -2430,7 +2596,20 @@ export default function ExplorerCanvas({
       } else {
         ctx.globalAlpha = 1;
       }
-      drawManagedStageImage(ctx, activeStage.buffer, width, height, activeCompositeAlpha, colorPresence, playbackTime, currentSectionIndex);
+      drawManagedStageImage(
+        ctx,
+        activeStage.buffer,
+        width,
+        height,
+        activeCompositeAlpha,
+        colorPresence,
+        playbackTime,
+        currentSectionIndex,
+        'source-over',
+        pointerOffsetX,
+        pointerOffsetY,
+        pointerScale,
+      );
       if (overlayScale.material > 0.02 && activeCompositeAlpha > 0.001) {
         const materialAlpha = Math.min(0.72, 0.22 + activeParams.density * 0.22 + activeParams.turbulence * 0.16)
           * overlayScale.material
@@ -2446,6 +2625,9 @@ export default function ExplorerCanvas({
           playbackTime,
           currentSectionIndex + 31,
           activeStage.recipe.sceneProfile === 'tide' ? 'screen' : 'source-over',
+          pointerOffsetX * 0.55,
+          pointerOffsetY * 0.55,
+          1 + (pointerScale - 1) * 0.55,
         );
         ctx.globalCompositeOperation = 'source-over';
       }
@@ -2491,6 +2673,54 @@ export default function ExplorerCanvas({
       const idlePresence = clamp01(1 - playEnergy * 1.12);
       const [ar, ag, ab] = activePalette.accentGlow;
       const [wr, wg, wb] = activePalette.accentWarm;
+
+      // A quiet local lift gives the pointer presence rather than making it a
+      // visible control. Velocity briefly tightens the glow, then leaves a
+      // slow afterimage through the independently eased position.
+      if (pointerPresence > 0.01 && colorPresence > 0.01) {
+        const pointerCenterX = pointerX * width;
+        const pointerCenterY = pointerY * height;
+        const pointerRadius = Math.max(width, height) * (0.16 + pointerVelocity * 0.045);
+        const pointerAlpha = (0.026 + pointerVelocity * 0.042)
+          * pointerPresence
+          * colorPresence
+          * Math.min(1, overlayScale.glow + 0.35);
+        const pointerGlow = ctx.createRadialGradient(
+          pointerCenterX,
+          pointerCenterY,
+          0,
+          pointerCenterX,
+          pointerCenterY,
+          pointerRadius,
+        );
+        pointerGlow.addColorStop(0, `rgba(${ar},${ag},${ab},${pointerAlpha * 0.76})`);
+        pointerGlow.addColorStop(0.24, `rgba(${wr},${wg},${wb},${pointerAlpha})`);
+        pointerGlow.addColorStop(0.38, `rgba(${ar},${ag},${ab},${pointerAlpha * 0.3})`);
+        pointerGlow.addColorStop(1, `rgba(${ar},${ag},${ab},0)`);
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.fillStyle = pointerGlow;
+        ctx.fillRect(0, 0, width, height);
+
+        // Two sub-pixel "attention motes" lag around the eased position. They
+        // make the interaction discoverable without drawing a cursor halo.
+        const moteTime = now * 0.00045;
+        for (let moteIndex = 0; moteIndex < 2; moteIndex += 1) {
+          const phase = moteTime + moteIndex * 2.7;
+          const orbit = 18 + moteIndex * 13;
+          const moteX = pointerCenterX + Math.cos(phase) * orbit;
+          const moteY = pointerCenterY + Math.sin(phase * 0.83) * orbit * 0.62;
+          const moteRadius = 1.2 + pointerVelocity * 1.4 + moteIndex * 0.45;
+          const mote = ctx.createRadialGradient(moteX, moteY, 0, moteX, moteY, moteRadius * 4.5);
+          const moteAlpha = (0.1 + pointerVelocity * 0.16) * pointerPresence * colorPresence;
+          mote.addColorStop(0, `rgba(${wr},${wg},${wb},${moteAlpha})`);
+          mote.addColorStop(0.24, `rgba(${ar},${ag},${ab},${moteAlpha * 0.56})`);
+          mote.addColorStop(1, `rgba(${ar},${ag},${ab},0)`);
+          ctx.fillStyle = mote;
+          ctx.fillRect(moteX - moteRadius * 4.5, moteY - moteRadius * 4.5, moteRadius * 9, moteRadius * 9);
+        }
+        ctx.restore();
+      }
 
       if (idlePresence > 0.02 && sceneProfile.idleAlpha * overlayScale.ambient > 0.01) {
         const idleDrift = now * 0.000035;
@@ -2649,6 +2879,9 @@ export default function ExplorerCanvas({
       destroyStage(activeStage);
       destroyStage(outgoingStage);
       q.remove();
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('blur', releasePointer);
+      document.removeEventListener('mouseleave', releasePointer);
     };
   }, [audioSignalRef, supportsRichVisualRuntime, q5Ready, reviewMotion, stage.height, stage.width, visualRuntimeReady]);
 

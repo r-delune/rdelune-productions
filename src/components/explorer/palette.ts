@@ -89,12 +89,12 @@ function createPaletteFromHue(hue: number): Palette {
 
   return {
     baseHue: resolvedHue,
-    bgDark: hsbToRgb(resolvedHue, 0.18, 0.22),
-    bgMid: hsbToRgb(resolvedHue, 0.34, 0.18),
-    accentGlow: hsbToRgb(resolvedHue, 0.72, 0.82),
-    accentWarm: hsbToRgb(resolvedHue + 28, 0.60, 0.64),
-    dotColor: hsbToRgb(resolvedHue, 0.22, 0.88),
-    panelBg: hsbToRgb(resolvedHue, 0.22, 0.12),
+    bgDark: hsbToRgb(resolvedHue, 0.38, 0.26),
+    bgMid: hsbToRgb(resolvedHue, 0.55, 0.22),
+    accentGlow: hsbToRgb(resolvedHue, 0.80, 0.90),
+    accentWarm: hsbToRgb(resolvedHue + 55, 0.72, 0.76),
+    dotColor: hsbToRgb(resolvedHue, 0.28, 0.92),
+    panelBg: hsbToRgb(resolvedHue, 0.30, 0.12),
   };
 }
 
@@ -132,15 +132,19 @@ export function clonePalette(palette: Palette): Palette {
   };
 }
 
+function rotateHue(rgb: [number, number, number], degrees: number): [number, number, number] {
+  const { h, s, b } = rgbToHsb(rgb[0], rgb[1], rgb[2]);
+  return hsbToRgb(h + degrees, s, b);
+}
+
 export function applyPaletteHueShift(target: Palette, source: Palette, hueShift: number): void {
-  const shifted = createPaletteFromHue(source.baseHue + hueShift);
-  target.baseHue = shifted.baseHue;
-  copyTriplet(target.bgDark, shifted.bgDark);
-  copyTriplet(target.bgMid, shifted.bgMid);
-  copyTriplet(target.accentGlow, shifted.accentGlow);
-  copyTriplet(target.accentWarm, shifted.accentWarm);
-  copyTriplet(target.dotColor, shifted.dotColor);
-  copyTriplet(target.panelBg, shifted.panelBg);
+  target.baseHue = normalizeHue(source.baseHue + hueShift);
+  copyTriplet(target.bgDark,     hueShift === 0 ? source.bgDark     : rotateHue(source.bgDark,     hueShift));
+  copyTriplet(target.bgMid,      hueShift === 0 ? source.bgMid      : rotateHue(source.bgMid,      hueShift));
+  copyTriplet(target.accentGlow, hueShift === 0 ? source.accentGlow : rotateHue(source.accentGlow, hueShift));
+  copyTriplet(target.accentWarm, hueShift === 0 ? source.accentWarm : rotateHue(source.accentWarm, hueShift));
+  copyTriplet(target.dotColor,   hueShift === 0 ? source.dotColor   : rotateHue(source.dotColor,   hueShift));
+  copyTriplet(target.panelBg,    hueShift === 0 ? source.panelBg    : rotateHue(source.panelBg,    hueShift));
 }
 
 export function applyPaletteTransform(target: Palette, source: Palette, transform?: PaletteTransform): void {

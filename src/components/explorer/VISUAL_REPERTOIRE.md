@@ -133,7 +133,7 @@ Central forms and gravity wells.
 - orbital sparks
 - gravity wells
 
-Current coverage: `cong-planet-core`, `native-gravity-current` (invisible wandering wells braid long-trail particles into filament webs — a non-planet gravity field).
+Current coverage: `cong-planet-core`.
 
 Gap: quieter core forms.
 

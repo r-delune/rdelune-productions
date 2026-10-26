@@ -7,6 +7,16 @@ import type { AudioSignal } from './audio-signal';
 import type { VisualizerTuningConfig } from './tuning';
 import type { BeatGrid } from './runtime/types';
 
+/** Eased desktop pointer presence. Coordinates are normalized, top-origin. */
+export interface PointerSignal {
+  x: number;
+  y: number;
+  presence: number;
+  velocity: number;
+  deltaX: number;
+  deltaY: number;
+}
+
 /** Internal visual parameters — every visualizer reads these each frame */
 export interface VisualParams {
   turbulence: number;  // 0-1, noise complexity / amplitude
@@ -18,6 +28,7 @@ export interface VisualParams {
   impulse: number;     // 0-1, short-lived burst intensity
   strokeMode?: number; // 0-1, sketch-specific linework toggle
   verticalHueGradient?: number; // 0-1, flow-field-only top/bottom colour variation
+  pointer?: PointerSignal; // optional desktop interaction; absent/zero for touch + reduced motion
 }
 
 /** Sparse musical event derived from track timing or authored visual plans. */

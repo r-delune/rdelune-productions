@@ -21,6 +21,25 @@ import type { ThreeModule } from './three-host';
 
 export type Uniforms = Record<string, { value: unknown }>;
 
+/**
+ * Catalogue-wide film-stock exposure, dev-tunable via `?exposure=` (e.g.
+ * `?exposure=0.9`). Defaults to 1.0 and is ignored in production builds, so it's
+ * purely a tuning aid for the live mood lab. Read once and cached. Feeds the
+ * uExposure uniform every fullscreen lens kernel already declares.
+ */
+let cachedFilmExposure: number | null = null;
+export function getFilmExposure(): number {
+  if (cachedFilmExposure !== null) return cachedFilmExposure;
+  let value = 1.5;
+  if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
+    const raw = new URLSearchParams(window.location.search).get('exposure');
+    const parsed = raw !== null ? Number.parseFloat(raw) : NaN;
+    if (Number.isFinite(parsed) && parsed > 0) value = Math.min(3, parsed);
+  }
+  cachedFilmExposure = value;
+  return value;
+}
+
 /** 0..1 colour channels for a shader uniform from a 0..255 palette triple. */
 export function paletteVec3(three: ThreeModule, rgb: [number, number, number]) {
   return new three.Vector3(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255);
@@ -288,6 +307,7 @@ export const STD_UNIFORM_GLSL = /* glsl */ `
   uniform float uTime;
   uniform vec2  uResolution;
   uniform float uPixelRatio;
+  uniform float uExposure;        // film-stock exposure (dev: ?exposure=, default 1.0)
 
   // STRUCTURAL musical signals only — no raw per-frame bands/onsets. GPU
   // sketches are smooth and high-fidelity; direct signal makes them jumpy.
@@ -308,6 +328,11 @@ export const STD_UNIFORM_GLSL = /* glsl */ `
   uniform float uShimmer;
   uniform float uImpulse;
   uniform float uHueShift;
+
+  uniform vec2  uPointer;         // normalized UV, bottom-origin for shaders
+  uniform float uPointerPresence; // eased 0..1, zero on touch/reduced motion
+  uniform float uPointerVelocity; // eased 0..1 movement energy
+  uniform vec2  uPointerDelta;    // normalized recent direction, bottom-origin
 
   uniform vec4  uExclusion;       // left, right, top, bottom (px, top-origin)
   uniform float uExclusionActive;
@@ -355,13 +380,56 @@ export const GRAIN_GLSL = /* glsl */ `
     return mix(1.0, smoothstep(1.0, 0.0, d), strength);
   }
 
-  // Apply both in one call. grainAmt ~0.03–0.06; vignetteAmt ~0.45–0.75.
-  // Both taper in sections 0-1 so the opener isn't gritty from frame zero.
+  // ── Shared film stock ──────────────────────────────────────
+  // Narkowicz ACES filmic approximation: warm, smooth highlight rolloff so the
+  // whole catalogue reads as one production, not separate demos. applyToneMap
+  // recovers a little saturation afterwards so ACES never washes the palette
+  // out (Colour Vibrancy Mandate, HERMES.md). Tune the catalogue-wide look from
+  // FILM_EXPOSURE / FILM_SATURATION here — one place, every kernel.
+  vec3 acesFilmic(vec3 x){
+    return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
+  }
+  vec3 applyToneMap(vec3 col){
+    const float FILM_SATURATION = 1.22;
+    vec3 t = acesFilmic(col * uExposure);   // uExposure: dev-tunable via ?exposure=
+    float l = dot(t, vec3(0.2126, 0.7152, 0.0722));
+    return mix(vec3(l), t, FILM_SATURATION);
+  }
+
+  // Apply the shared lens in one call: filmic tonemap → grain → vignette.
+  // grainAmt ~0.03–0.06; vignetteAmt ~0.45–0.75. Grain/vignette taper in
+  // sections 0-1 so the opener isn't gritty from frame zero.
   vec3 applyGrainVignette(vec3 col, vec2 uv, float grainAmt, float vignetteAmt) {
+    col = applyToneMap(col);                       // shared film stock
     float sectionEase = smoothstep(0.0, 0.35, uSectionProgress);
     col += filmGrain(uv) * grainAmt * sectionEase;
     col *= vignetteStrength(uv, vignetteAmt);
     return col;
+  }
+`;
+
+/**
+ * Standalone filmic tonemap for NON-fullscreen kernels (e.g. additive instanced
+ * particle fields) that don't include GRAIN_GLSL and so can't reach its copy.
+ * Same `acesFilmic`/`applyToneMap` as GRAIN_GLSL carries internally — the small
+ * duplication is deliberate: keeping each include self-contained avoids runtime
+ * GLSL "undefined function" breaks. Include this where you set the colour.
+ *
+ * Note: for additive blending this tonemaps each contribution, not the summed
+ * frame, so it's an approximation (it tames per-particle over-brightness and
+ * matches the catalogue colour response). The exact match would be an FBO post
+ * pass over the kernel's rendered target.
+ */
+export const TONEMAP_GLSL = /* glsl */ `
+  vec3 acesFilmic(vec3 x){
+    return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
+  }
+  vec3 applyToneMap(vec3 col){
+    const float FILM_EXPOSURE = 1.5;
+    const float FILM_SATURATION = 1.22;
+    vec3 t = acesFilmic(col * FILM_EXPOSURE);
+    float l = dot(t, vec3(0.2126, 0.7152, 0.0722));
+    return mix(vec3(l), t, FILM_SATURATION);
   }
 `;
 
@@ -380,6 +448,7 @@ export function createStandardUniforms(three: ThreeModule, palette: Palette, w: 
     uTime: { value: 0 },
     uResolution: { value: new three.Vector2(w, h) },
     uPixelRatio: { value: dpr },
+    uExposure: { value: getFilmExposure() },
     uLevel: { value: 0 },
     uSectionProgress: { value: 0 },
     uBeatPhase: { value: -1 },
@@ -394,6 +463,10 @@ export function createStandardUniforms(three: ThreeModule, palette: Palette, w: 
     uShimmer: { value: 0 },
     uImpulse: { value: 0 },
     uHueShift: { value: 0 },
+    uPointer: { value: new three.Vector2(0.5, 0.5) },
+    uPointerPresence: { value: 0 },
+    uPointerVelocity: { value: 0 },
+    uPointerDelta: { value: new three.Vector2(0, 0) },
     uExclusion: { value: new three.Vector4(0, 0, 0, 0) },
     uExclusionActive: { value: 0 },
   };
@@ -415,6 +488,7 @@ export function applyStandardUpdate(
   palette: Palette,
 ): void {
   uniforms.uTime.value = time;
+  if (uniforms.uExposure) uniforms.uExposure.value = getFilmExposure();
   // Slow (~2.5 s) energy envelope — song dynamics without per-frame jitter.
   const k = 1 - Math.exp(-Math.max(0, dt) / 2.5);
   const level = uniforms.uLevel.value as number;
@@ -434,6 +508,11 @@ export function applyStandardUpdate(
   uniforms.uShimmer.value = params.shimmer;
   uniforms.uImpulse.value = params.impulse;
   uniforms.uHueShift.value = params.hueShift;
+  const pointer = params.pointer;
+  (uniforms.uPointer.value as { set: (x: number, y: number) => void }).set(pointer?.x ?? 0.5, 1 - (pointer?.y ?? 0.5));
+  uniforms.uPointerPresence.value = pointer?.presence ?? 0;
+  uniforms.uPointerVelocity.value = pointer?.velocity ?? 0;
+  (uniforms.uPointerDelta.value as { set: (x: number, y: number) => void }).set(pointer?.deltaX ?? 0, -(pointer?.deltaY ?? 0));
   const ex = uniforms.uExclusion.value as { set: (a: number, b: number, c: number, d: number) => void };
   const hasExclusion = exclusion.right > exclusion.left && exclusion.bottom > exclusion.top;
   ex.set(exclusion.left, exclusion.right, exclusion.top, exclusion.bottom);
@@ -461,12 +540,16 @@ const SECTION_TAU: readonly number[] = [
  */
 export function createSectionProgress() {
   let value = 0;
-  let target = 0;
+  // Section zero is already an authored section even though ExplorerCanvas
+  // does not emit a boundary cue until section one. Start its slow emergence
+  // immediately; otherwise every Three scene remains pinned to its darkest
+  // pre-section state for the whole opener.
+  let target = 1 / 5;
   let cueCount = 0;
   let tau = SECTION_TAU[0];
   return {
     get value() { return value; },
-    reset() { value = 0; target = 0; cueCount = 0; tau = SECTION_TAU[0]; },
+    reset() { value = 0; target = 1 / 5; cueCount = 0; tau = SECTION_TAU[0]; },
     handleEvent(event: VisualEvent) {
       if (event.type === 'section-cue') {
         const idx = Math.max(cueCount, event.sectionIndex ?? 0);

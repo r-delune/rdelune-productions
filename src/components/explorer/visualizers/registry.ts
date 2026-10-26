@@ -8,7 +8,6 @@ import { createCongLandscapeFlow } from './cong-landscape-flow';
 import { createCongLandscapeSpiral } from './cong-landscape-spiral';
 import { createCongContourLines } from './cong-contour-lines';
 import { createCongGenerativeParticles } from './cong-generative-particles';
-import { createCongGreenGalaxy } from './cong-green-galaxy';
 import { createCongPlanetCore } from './cong-planet-core';
 import { createCongLateralCurrent } from './cong-lateral-current';
 import { createCongLateralCascade } from './cong-lateral-cascade';
@@ -28,7 +27,6 @@ import { createOrganicDrift } from './organic-drift';
 import { createNativeReactionVeil } from './native-reaction-veil';
 import { createNativeAttractorDrift } from './native-attractor-drift';
 import { createNativeAuroraVeil } from './native-aurora-veil';
-import { createNativeGravityCurrent } from './native-gravity-current';
 import { createThreeCurlFlow } from './three-curl-flow';
 import { createThreeVolumetricFog } from './three-volumetric-fog';
 import { createThreeCaustics } from './three-caustics';
@@ -38,6 +36,7 @@ import { createThreeLightRays } from './three-light-rays';
 import { createThreeSparseVeil } from './three-sparse-veil';
 import { createThreeReactionDiffusion } from './three-reaction-diffusion';
 import { createThreeFluidAdvection } from './three-fluid-advection';
+import { createThreeCanyonVista } from './three-canyon-vista';
 
 export type VisualizerName =
   | 'cong-cloud-orbit'
@@ -50,7 +49,6 @@ export type VisualizerName =
   | 'cong-lateral-current'
   | 'cong-lateral-cascade'
   | 'cong-vertical-landscape-stream'
-  | 'cong-green-galaxy'
   | 'cong-horizon-field'
   | 'cong-waterline-shimmer'
   | 'cong-broken-grid'
@@ -65,7 +63,6 @@ export type VisualizerName =
   | 'native-reaction-veil'
   | 'native-attractor-drift'
   | 'native-aurora-veil'
-  | 'native-gravity-current'
   | 'three-curl-flow'
   | 'three-volumetric-fog'
   | 'three-caustics'
@@ -74,7 +71,8 @@ export type VisualizerName =
   | 'three-light-rays'
   | 'three-sparse-veil'
   | 'three-reaction-diffusion'
-  | 'three-fluid-advection';
+  | 'three-fluid-advection'
+  | 'three-canyon-vista';
 
 const FACTORIES: Record<VisualizerName, () => Visualizer> = {
   'cong-cloud-orbit': createCongCloudOrbit,
@@ -87,7 +85,6 @@ const FACTORIES: Record<VisualizerName, () => Visualizer> = {
   'cong-lateral-current': createCongLateralCurrent,
   'cong-lateral-cascade': createCongLateralCascade,
   'cong-vertical-landscape-stream': createCongVerticalLandscapeStream,
-  'cong-green-galaxy': createCongGreenGalaxy,
   'cong-horizon-field': createCongHorizonField,
   'cong-waterline-shimmer': createCongWaterlineShimmer,
   'cong-broken-grid': createCongBrokenGrid,
@@ -102,7 +99,6 @@ const FACTORIES: Record<VisualizerName, () => Visualizer> = {
   'native-reaction-veil': createNativeReactionVeil,
   'native-attractor-drift': createNativeAttractorDrift,
   'native-aurora-veil': createNativeAuroraVeil,
-  'native-gravity-current': createNativeGravityCurrent,
   'three-curl-flow': createThreeCurlFlow,
   'three-volumetric-fog': createThreeVolumetricFog,
   'three-caustics': createThreeCaustics,
@@ -112,6 +108,7 @@ const FACTORIES: Record<VisualizerName, () => Visualizer> = {
   'three-sparse-veil': createThreeSparseVeil,
   'three-reaction-diffusion': createThreeReactionDiffusion,
   'three-fluid-advection': createThreeFluidAdvection,
+  'three-canyon-vista': createThreeCanyonVista,
 };
 
 export function createVisualizer(name: VisualizerName): Visualizer {

@@ -47,6 +47,8 @@ const FRAGMENT_SHADER = /* glsl */ `
   uniform float uLightStrength;
   uniform float uEmissiveGain;
   uniform float uSurge;
+  uniform vec3  uNoiseOffset;
+  uniform float uLightAngle;
 
   // Cheap 3-octave density for the volume — the 5-octave shared fbm is far too
   // expensive at raymarch rates. Half-res rendering hides the lost fine detail.
@@ -59,19 +61,22 @@ const FRAGMENT_SHADER = /* glsl */ `
 
   void main(){
     vec2 uv = vUv - 0.5;
-    uv.x *= uResolution.x / max(1.0, uResolution.y);
+    float aspect = uResolution.x / max(1.0, uResolution.y);
+    uv.x *= aspect;
+    vec2 pointerDelta = (vUv - uPointer) * vec2(aspect, 1.0);
+    float pointerClear = exp(-dot(pointerDelta, pointerDelta) * 13.0) * uPointerPresence;
 
     vec3 ro = vec3(0.0, 0.0, -2.6);
     vec3 rd = normalize(vec3(uv, 1.15));
-    vec3 L  = normalize(vec3(0.35, 0.7, -0.4)); // soft key light
+    // Light angle shifts per section — scatter pattern changes each section
+    vec3 L  = normalize(vec3(0.35 + uSectionProgress * 0.30, 0.7 - uSectionProgress * 0.20, -0.4));
 
     // Slow domain drift only — structural, no per-frame audio billow.
     float t = uTime * uDriftSpeed * (0.5 + uDrift * 1.1);
     vec3 drift = vec3(t * 0.5, -t * 0.3, t);
 
-    // Coverage grows with the slow level envelope and section progress (the
-    // fog deepens over the song) — no raw band signal.
-    float coverage = uDensityScale * (0.72 + uLevel * 0.5 + uDensity * 0.6 + uSectionProgress * 0.35 + uSurge * 0.5);
+    // Coverage reduced so fog has visible gaps/structure rather than saturating
+    float coverage = uDensityScale * (0.55 + uLevel * 0.35 + uDensity * 0.55 + uSectionProgress * 0.30 + uSurge * 0.55);
     float ns = uNoiseScale;
 
     float marchDist = 5.0;
@@ -82,19 +87,23 @@ const FRAGMENT_SHADER = /* glsl */ `
       if (float(i) >= uSteps) break;
       vec3 p = ro + rd * (float(i) * stepSize + 0.15);
 
-      float base = fogFbm(p * ns + drift);
-      // Sections reveal a touch more fine structure over the song.
-      float d = smoothstep(0.52 - uSectionProgress * 0.06, 0.9, base) * coverage;
+      float base = fogFbm(p * ns + drift + uNoiseOffset);
+      // Higher threshold → more volume below cutoff → visible cloud gaps
+      float d = smoothstep(0.60 - uSectionProgress * 0.06, 0.9, base) * coverage;
+      // Clear the near volume more strongly than the far volume. This reveals
+      // depth behind the pointer instead of punching a flat transparent hole.
+      float depthProgress = float(i) / max(1.0, uSteps - 1.0);
+      d *= 1.0 - pointerClear * mix(0.76, 0.28, depthProgress);
       if (d <= 0.003) continue;
 
       // Cheap self-shadow toward the light (single octave) for soft scatter.
-      float lit = snoise((p + L * 0.28) * ns + drift) * 0.5 + 0.5;
+      float lit = snoise((p + L * 0.28) * ns + drift + uNoiseOffset) * 0.5 + 0.5;
       float scatter = clamp((base - lit) * 1.8 + 0.35, 0.0, 1.0);
 
       vec3 fogColor = mix(uColorMid, uColorA, scatter * uLightStrength + uLevel * 0.25);
       fogColor = mix(fogColor, uColorWarm, uSurge * 0.4);
 
-      float a = clamp(d * stepSize * 5.0, 0.0, 1.0);
+      float a = clamp(d * stepSize * 2.8, 0.0, 1.0);
       acc.rgb += (1.0 - acc.a) * a * fogColor;
       acc.a   += (1.0 - acc.a) * a;
       if (acc.a > 0.97) break;
@@ -127,6 +136,10 @@ function makeFogScene(): ThreeScene {
   let surgeTarget = 0;
   let warmColor: [number, number, number] | null = null;
   let colorMorph = 0;
+  // Noise domain offset lerps to a new target on each section-cue, creating
+  // compositionally distinct cloud regions per section
+  let noiseOffsetX = 0; let noiseOffsetY = 0;
+  let noiseTargetX = 0; let noiseTargetY = 0;
   const section = createSectionProgress();
 
   return {
@@ -144,6 +157,7 @@ function makeFogScene(): ThreeScene {
       uniforms = createStandardUniforms(three, palette, args.w, args.h);
       uniforms.uSteps = { value: tuning.maxSteps };
       uniforms.uNoiseScale = { value: tuning.noiseScale };
+      uniforms.uNoiseOffset = { value: new three.Vector3(0, 0, 0) };
       uniforms.uDensityScale = { value: tuning.densityScale };
       uniforms.uDriftSpeed = { value: tuning.driftSpeed };
       uniforms.uLightStrength = { value: tuning.lightStrength };
@@ -161,6 +175,8 @@ function makeFogScene(): ThreeScene {
       surgeTarget = 0;
       colorMorph = 0;
       warmColor = null;
+      noiseOffsetX = 0; noiseOffsetY = 0;
+      noiseTargetX = 0; noiseTargetY = 0;
       section.reset();
     },
 
@@ -168,14 +184,21 @@ function makeFogScene(): ThreeScene {
       if (!uniforms || !three || !palette) return;
       time += dt;
 
-      const damp = 1 - Math.pow(0.001, dt);
+      // Slow attack (~1.5s τ) so density surges breathe in rather than pop.
+      const damp = 1 - Math.pow(0.5, dt);
       surge = mixNum(surge, surgeTarget, damp);
-      surgeTarget = Math.max(0, surgeTarget - dt * 0.5);
+      surgeTarget = Math.max(0, surgeTarget - dt * 0.3);
       section.update(dt);
+
+      // Lerp noise offset toward section target (~4s τ) for gradual composition shift
+      const offsetDamp = 1 - Math.exp(-dt / 4.0);
+      noiseOffsetX = mixNum(noiseOffsetX, noiseTargetX, offsetDamp);
+      noiseOffsetY = mixNum(noiseOffsetY, noiseTargetY, offsetDamp);
 
       applyStandardUpdate(uniforms, dt, time, params, audio, exclusion, palette);
       uniforms.uSurge.value = surge;
       uniforms.uSectionProgress.value = section.value;
+      (uniforms.uNoiseOffset.value as import('three').Vector3).set(noiseOffsetX, noiseOffsetY, 0);
       // Raymarch step count is the per-frame quality lever (frame-local).
       uniforms.uSteps.value = Math.max(8, Math.round(tuning.maxSteps * getQualityScale()));
 
@@ -197,6 +220,10 @@ function makeFogScene(): ThreeScene {
       }
       if (event.type === 'glow-pulse' || event.type === 'spark-burst') {
         surgeTarget = Math.min(1, surgeTarget + 0.2 + intensity * 0.3);
+      }
+      if (event.type === 'section-cue') {
+        noiseTargetX = (Math.random() - 0.5) * 8.0;
+        noiseTargetY = (Math.random() - 0.5) * 8.0;
       }
       if ((event.type === 'color-morph' || event.type === 'palette-morph') && event.color) {
         warmColor = event.color;

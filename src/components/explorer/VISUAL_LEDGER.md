@@ -63,7 +63,7 @@ Families mirror `VISUAL_REPERTOIRE.md`. Update counts/gaps as work lands. `+` = 
 | Light | + | `three-light-rays` (god-rays + motes), `grid-rays`, `random-chords` overlays | — |
 | Linework | ~ | `cong-contour-lines` | non-cloud linework family still open |
 | Grid / Structure | ! | `grid-rays` overlay | **!** `cong-grid-pulse` (restrained tile/grid pulse) from `derkdisco` |
-| Orbit / Core | + | `cong-planet-core`, `native-gravity-current` | `three-fresnel-core` retired after review |
+| Orbit / Core | + | `cong-planet-core` | `three-fresnel-core` and `native-gravity-current` retired after review |
 | Sparse Minimal | + | `three-sparse-veil` (near-still volumetric mist) | `three-fresnel-core` retired after review |
 
 When a technique is confirmed/retired, also reflect it in `cong/ledger.ts` (`reviewState`, `archiveStatus`).
@@ -77,16 +77,17 @@ Rotate GPU techniques so the repertoire does not become only fullscreen fragment
 | Technique | State | Current coverage | Next pressure |
 |---|---|---|---|
 | Fullscreen shader material | + | `three-caustics` | Avoid duplicate caustic/noise demos |
-| Raymarch / volumetric | + | `three-volumetric-fog` | Near-still outro tableau |
+| Raymarch / volumetric | + | `three-volumetric-fog`, `three-canyon-vista` | — |
+| Perspective terrain / heightfield | + | `three-canyon-vista` | First kernel with a real camera + horizon; needs a visual tuning pass (see Improvement Candidates) |
 | Instanced field | + | `three-curl-flow` | Only add if the scene role differs clearly |
-| Ping-pong FBO feedback | + | `three-artwork-flux`, `three-reaction-diffusion` | Fluid advection still open if a second stateful material is needed |
+| Ping-pong FBO feedback | + | `three-artwork-flux`, `three-reaction-diffusion`, `three-fluid-advection` | Well covered |
 | Artwork texture sampling | + | `three-artwork-flux` | Keep accent-only; never opener |
 | Fresnel / SDF / core form | - | — | `three-fresnel-core` retired after review |
 | Light-only GPU scene | + | `three-light-rays` | — |
 | Reaction-diffusion (Gray-Scott) | + | `three-reaction-diffusion` | Continue tuning against flat material/fog overlap |
-| GPU fluid advection | ! | — | **Highest-priority new technique** — velocity-field ping-pong; drives particle trails like smoke/ink; far more organic than noise-driven motion |
-| Section easing curves (shared helper) | ! | — | All kernels lerp linearly to section progress; a `createSectionEasing(role)` helper would make all transitions feel musical |
-| Film grain / vignette utility (shared) | ! | — | ~5 GLSL lines; cinematic depth uplift across all Three kernels; build once, import everywhere |
+| GPU fluid advection | + | `three-fluid-advection` | Velocity-field ping-pong shipped |
+| Section easing curves (shared helper) | + | `runtime/section-easing.ts` | Role-based `getSectionEasing(role)` drives cue swell + param-lerp speed in `ExplorerCanvas` |
+| Film grain / vignette utility (shared) | + | `three-scene-helpers.ts` (`GRAIN_GLSL`) | `applyGrainVignette` + ACES tonemap, imported by every fullscreen kernel |
 
 ---
 
@@ -102,10 +103,16 @@ Seeded from `VISUAL_REPERTOIRE.md` declared gaps + "Next Batch". Prefer Three-fi
 
 Next foundation/tech priorities:
 
-1. **GPU fluid advection** — velocity-field ping-pong for smoke/ink trails.
-2. **Shared section easing curves** — musical role-based easing helper for all kernels.
-3. **Shared GLSL film grain/vignette utility** — one importable cinematic finish for Three kernels.
+1. ~~**GPU fluid advection**~~ — ✅ shipped as `three-fluid-advection`.
+2. ~~**Shared section easing curves**~~ — ✅ shipped as `runtime/section-easing.ts` (`getSectionEasing(role)`; wired into the param lerp in `ExplorerCanvas`).
+3. ~~**Shared GLSL film grain/vignette utility**~~ — ✅ shipped as `GRAIN_GLSL` / `applyGrainVignette` in `three-scene-helpers.ts`.
 4. **Legacy Canvas2D maintenance** — `cong-grid-pulse` only when the cycle is explicitly maintenance.
+
+> **Live rotation is pinned.** `BEST_MODE = true` in `runtime/recipes.ts` restricts the random
+> deck to `['three-curl-flow', 'three-volumetric-fog']`. The live deck ≠ the built set: all other
+> `productionReady` Three kernels (caustics, light-rays, sparse-veil, reaction-diffusion,
+> fluid-advection, artwork-flux, canyon-vista) are review-only via the mood lab until promoted into
+> `BEST_MODE_RECIPE_IDS`.
 
 Creative-prototype track (from `VISUAL_REPERTOIRE.md` New Sketch Baseline, building off `cong-lateral-current`):
 `cong-symmetry-particles` → recursive/tree growth → snowflake field → Mandelbrot/Julia (once perf & AA are clear).
@@ -120,6 +127,12 @@ Running list of existing sketches worth a better version. Add to this whenever y
 All five Three.js improvement candidates cleared 2026-06-19. See Worklog.
 
 All retirement candidates cleared 2026-06-19. See Worklog.
+
+- **`three-canyon-vista`** (added 2026-07-02) — new perspective-terrain kernel; wired, compiles, error-free,
+  review-only. Needs a visual tuning pass: on dark/low-energy palettes in headless review it reads flatter
+  than intended (horizon/ridge contrast, sun key light). Best dialed in interactively in the mood lab
+  (`?lab=1&recipe=three-canyon-vista`) with real audio across a bright and a dark palette before any promotion
+  into `BEST_MODE_RECIPE_IDS`.
 
 Look for additional candidates: sketches that read denser-than-deep, weak/absent five-section arcs, per-frame allocation or noise-cost hotspots, gradients/`fillStyle` churn, aesthetic drift (mechanical motion, diagrammatic geometry, off-tone color), or anything that blanks under reduced motion.
 
@@ -150,6 +163,15 @@ Look for additional candidates: sketches that read denser-than-deep, weak/absent
 
 Newest first. Format: `YYYY-MM-DD · new|improvement · <recipe/kernel> · <one-line outcome>`.
 
+- 2026-06-25 · fix · storyboard/plans dead-reference cleanup · removed `cong-artwork-mosh-*` (retired 2026-06-19 in "Prune weak production visuals") and stray `native-kaleido-fold-ambient`/`-bloom` recipe ids that were still referenced by string in `storyboard.ts` `MOSH_ROLE_POOLS` and `plans.ts` (`ARTWORK_OPENER_RECIPES`, `GENERATED_MOSH_ACCENT_RECIPES`, `GENERATIVE_VARIETY_SEQUENCE`, `pickArtworkOpener()` local pools, intro/peak candidate lists); dead ids silently collapsed mosh-arc tracks to `three-curl-flow`/`three-artwork-flux` ping-pong. Also hardened `resolveProductionRecipeId()` in `plans.ts` to fall back when a replacement id isn't `isProductionReadyRecipe`, so a future prune can't reintroduce this silently.
+- 2026-06-20 · improvement · `three-artwork-flux` · added visible coherent artwork transport and differential feedback drift instead of only slowly evolving in-place distortion.
+- 2026-06-20 · improvement · `three-artwork-flux` · replaced near-uniform artwork resampling with torn image echoes, organic fold displacement, luminous fault seams, and a depth-haze shelf that remains legible on low-detail covers.
+- 2026-06-20 · improvement · Three startup presence + `three-curl-flow` · section zero now begins its authored emergence without waiting for a nonexistent initial boundary cue; Curl Flow opens with a visible 5% seed and accumulates gradually through section two.
+- 2026-06-20 · improvement · `three-artwork-flux` · raised dark-art exposure and shadow visibility while reducing the display vignette from 0.42 to 0.24.
+- 2026-06-20 · improvement · `smoke-planes` · replaced near-static screen-grid jitter with wrapped depth-dependent advection and broad coherent billow.
+- 2026-06-20 · retirement · `cong-green-galaxy` · removed its recipe, generative tuning mode, candidate ID, saved-deck entry, and all plan/storyboard routes after review.
+- 2026-06-20 · retirement · `native-gravity-current` · removed the recipe, rotation references, tuning, registry wiring, and kernel after review.
+- 2026-06-20 · retirement · `cong-green-galaxy-orbit` · removed the standalone orbital-particle recipe from production rotation after review.
 - 2026-06-19 · retirement · `native-sidewind-drift`, `cong-landscape-og-current`, `three-fresnel-core` · removed from registry, recipes, rotation pools, and source after review.
 - 2026-06-19 · improvement · `smoke-planes` · Section arc / Colour & mood: per-phase hue offset (cool → warm at peak → cool exhale), dot-size growth toward peak, speed multiplier per section; all lerp smoothly over ~1.4 s.
 - 2026-06-19 · new · `cong-green-galaxy-orbit` · added recipe wiring the orphaned `cong-green-galaxy` kernel into rotation; fills Galaxy/Orbit via distinct orbital-particle implementation.

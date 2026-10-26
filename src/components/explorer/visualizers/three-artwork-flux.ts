@@ -57,8 +57,12 @@ const FEEDBACK_SHADER = /* glsl */ `
   }
 
   vec3 fallbackMaterial(vec2 uv){
-    float n = fbm(vec3(uv * vec2(2.4, 1.5), uTime * 0.035));
-    return mix(uColorBg, mix(uColorMid, uColorA, n), 0.58 + uGlow * 0.18);
+    float t = uTime * 0.025;
+    float broad = fbm(vec3(uv * vec2(2.1, 1.15), t));
+    float sediment = fbm(vec3(uv * vec2(7.0, 2.4) + vec2(broad * 0.9, 0.0), t * 0.6));
+    float veil = smoothstep(0.18, 0.92, broad * 0.72 + sediment * 0.38);
+    vec3 ground = mix(uColorBg, uColorMid, 0.34 + veil * 0.52);
+    return mix(ground, uColorA, pow(sediment, 3.0) * (0.18 + uGlow * 0.2));
   }
 
   vec3 artworkSample(vec2 uv, vec2 offset){
@@ -69,36 +73,87 @@ const FEEDBACK_SHADER = /* glsl */ `
 
   void main(){
     vec2 uv = vUv;
-    float t = uTime * (0.045 + uDrift * 0.055);
+    float t = uTime * (0.10 + uDrift * 0.12);
     // Keep a drift floor (0.15) so the scene never fully locks static even at silence/section 0
     float structural = 0.15 + (uLevel * 0.30 + uSectionProgress * 0.35 + uFlux * 0.50) * max(0.25, uSectionAmp);
     // Coherent curl: two scalar potentials rotated together break x/y independence
     // and eliminate the grid-aligned plaid artifact of separable noise.
     float pot0 = snoise(vec3(uv * 2.0, t));
     float pot1 = snoise(vec3(uv * 2.0 + 3.7, t + 1.1));
-    float rotA = uTime * 0.04;
+    float rotA = uTime * 0.075;
     float rc = cos(rotA), rs = sin(rotA);
     vec2 curl = vec2(pot0 * rc - pot1 * rs, pot0 * rs + pot1 * rc);
-    vec2 drift = curl * uDisplace * (0.004 + structural * 0.022);
+    vec2 drift = curl * uDisplace * (0.006 + structural * 0.034);
+    // Translate the artwork as well as its distortion field. Differential
+    // feedback travel keeps the motion legible without turning into a fast mosh.
+    float travelPhase = uTime * (0.085 + uDrift * 0.075);
+    vec2 transport = vec2(
+      sin(travelPhase) + sin(travelPhase * 0.43 + 1.7) * 0.34,
+      cos(travelPhase * 0.71) + sin(travelPhase * 0.37) * 0.28
+    ) * (0.008 + structural * 0.014);
+    float foldNoise = snoise(vec3(uv * vec2(1.35, 2.8), t * 0.72));
+    float fineNoise = snoise(vec3(uv * vec2(5.6, 2.1) + curl * 0.18, t * 1.15));
+    float fold = sin((uv.y + foldNoise * 0.105) * 18.0 - uv.x * 2.8 + t * 8.0);
+    float tear = smoothstep(0.48, 0.92, abs(fold)) * (0.42 + structural * 0.58);
+    float crossFold = sin((uv.x + fineNoise * 0.115) * 14.0 + uv.y * 4.6 - t * 5.4);
+    float crossTear = smoothstep(0.52, 0.94, abs(crossFold)) * (0.3 + structural * 0.7);
+    float split = sign(fold) * (0.012 + structural * 0.048) * uDisplace;
+    vec2 foldOffset = vec2(split + fineNoise * 0.012, foldNoise * 0.018) * tear;
+    foldOffset += vec2(fineNoise * 0.012, sign(crossFold) * (0.008 + structural * 0.035)) * crossTear * uDisplace;
     // Asymmetric per-channel smear: R and B split at different angles so the
     // chromatic fringe looks like optical glass aberration, not a "split RGB" filter.
     float smearMag = uTexel.x * (1.0 + uFlux * 7.0);
     vec2 smearR = vec2( smearMag,  smearMag * 0.4);
     vec2 smearB = vec2(-smearMag * 0.85, smearMag * 0.6);
 
-    vec3 prev = texture2D(uFeedback, clamp(uv + drift, 0.001, 0.999)).rgb;
-    vec3 artR = artworkSample(uv, drift + smearR * uChromatic);
-    vec3 artG = artworkSample(uv, drift);
-    vec3 artB = artworkSample(uv, drift + smearB * uChromatic);
+    vec3 prev = texture2D(uFeedback, clamp(uv + drift + transport * 0.42, 0.001, 0.999)).rgb;
+    vec3 artR = artworkSample(uv, drift + transport + foldOffset + smearR * uChromatic);
+    vec3 artG = artworkSample(uv, drift + transport + foldOffset);
+    vec3 artB = artworkSample(uv, drift + transport + foldOffset + smearB * uChromatic);
     vec3 art = vec3(artR.r, artG.g, artB.b);
 
+    // Offset echoes expose different parts of even very plain artwork. Their
+    // irregular masks read as translucent geological folds rather than a
+    // full-screen image with a small distortion filter applied to it.
+    vec2 echoOffset = vec2(-foldOffset.x * 2.6 + curl.y * 0.026, foldOffset.y - 0.045);
+    vec3 echo = artworkSample(uv, drift + transport * 1.24 + echoOffset);
+    float echoMask = smoothstep(0.08, 0.86, foldNoise * 0.5 + 0.5) * max(tear, crossTear * 0.78);
+    art = mix(art, echo, echoMask * (0.28 + structural * 0.46));
+
     float reveal = clamp(uReveal + uSectionProgress * 0.22 + uLevel * 0.14, 0.0, 1.0);
-    vec3 base = mix(fallbackMaterial(uv), art, reveal);
-    base = mix(base, base + uColorWarm * (0.08 + uFlux * 0.18), uGlow);
+    vec3 material = fallbackMaterial(uv + curl * 0.045);
+    vec3 base = mix(material, art, reveal);
+
+    // A minimum relief floor is essential for covers with almost no internal
+    // contrast (for example Sewing Machine 2's brown field). The artwork owns
+    // the colour, while procedural folds supply readable light and shadow.
+    float relief = smoothstep(-0.8, 0.82, foldNoise);
+    float crossRelief = smoothstep(-0.82, 0.86, fineNoise);
+    float foldShade = relief * 0.22 + crossRelief * 0.13 + max(tear, crossTear) * 0.15;
+    base *= 0.68 + foldShade;
+    base = mix(base, material, 0.18 + tear * (0.12 + structural * 0.08));
+
+    // Fault seams and a low atmospheric shelf give the material a spatial
+    // silhouette even when the source art is nearly monochrome.
+    float seamA = pow(1.0 - abs(fold), 9.0);
+    float seamB = pow(1.0 - abs(crossFold), 10.0);
+    float seam = max(seamA, seamB * 0.78) * (0.48 + structural * 0.52);
+    seam *= 0.45 + 0.55 * smoothstep(-0.7, 0.85, fineNoise);
+    float horizon = exp(-abs(uv.y - (0.58 + foldNoise * 0.055)) * 12.0);
+    float depthHaze = smoothstep(0.05, 0.92, uv.y) * (0.08 + structural * 0.12);
+    vec3 seamLight = mix(uColorA, uColorWarm, 0.55 + uFlux * 0.25) + vec3(0.055, 0.045, 0.04);
+    base += seamLight * seam * (0.52 + uGlow * 0.3 + uFlux * 0.44);
+    base = mix(base, uColorMid + uColorA * 0.12, horizon * depthHaze);
+    base = mix(base, base + uColorWarm * (0.08 + uFlux * 0.2), uGlow);
 
     float memory = clamp(uMemory + uLevel * 0.08, 0.0, 0.96);
-    vec3 col = mix(base, prev, uHasHistory * memory);
+    // Keep enough current structure that feedback cannot blur the folds back
+    // into the uniform wash this recipe previously converged toward.
+    float localMemory = memory * (0.82 - seam * 0.42 - tear * 0.12);
+    vec3 col = mix(base, prev, uHasHistory * localMemory);
     col += uColorA * pow(max(0.0, fbm(vec3(uv * 4.0 + curl * 0.2, t)) - 0.62), 2.0) * (0.2 + uFlux * 0.8);
+    // Ambient floor: feedback can't collapse below a visible minimum
+    col = max(col, uColorMid * 0.22 + uColorBg * 0.08);
     gl_FragColor = vec4(col, 1.0);
   }
 `;
@@ -110,12 +165,17 @@ const DISPLAY_SHADER = /* glsl */ `
   ${GRAIN_GLSL}
 
   uniform sampler2D uFrame;
+  uniform float uVignette;
 
   void main(){
     vec3 col = texture2D(uFrame, vUv).rgb;
-    // Cinematic shadow lift — ensures dark album art is never pure black
-    col = col * 0.70 + 0.15;
-    col = applyGrainVignette(col, vUv, 0.028, 0.36);
+    // Palette-derived floors remain too dark for low-key green/blue artwork.
+    // Lift exposure and gamma while retaining channel ratios and texture contrast.
+    float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
+    float shadow = smoothstep(0.34, 0.02, luma);
+    col = col * 1.42 + mix(vec3(0.045), uColorMid, 0.16) * shadow;
+    col = pow(max(col, vec3(0.0)), vec3(0.86));
+    col = applyGrainVignette(col, vUv, 0.024, uVignette);
     col = mix(uColorBg, col, exclusionMask());
     gl_FragColor = vec4(col, 1.0);
   }
@@ -190,6 +250,7 @@ function makeArtworkFluxScene(): ThreeScene {
       feedbackUniforms = createStandardUniforms(three, palette, args.w, args.h);
 
       displayUniforms.uFrame = { value: pingPong.read.texture };
+      displayUniforms.uVignette = { value: tuning.vignette };
       feedbackUniforms.uFeedback = { value: pingPong.read.texture };
       feedbackUniforms.uArtwork = { value: fallbackTexture };
       feedbackUniforms.uHasArtwork = { value: 0 };

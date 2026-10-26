@@ -19,7 +19,7 @@ import {
   type ProductionsVisualSettings,
 } from './production-settings';
 
-type ParamKey = keyof VisualParams;
+type ParamKey = Exclude<keyof VisualParams, 'pointer'>;
 type PaletteKey = keyof SectionPaletteConfig;
 
 export interface SectionMoodOverride {

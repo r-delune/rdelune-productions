@@ -164,9 +164,13 @@ function makeLightRaysScene(): ThreeScene {
       const sp = section.value;
       const lightAngle = -Math.PI * 0.5 + sp * Math.PI * 0.55;
       const lightR = 0.35 + sp * 0.15;
+      const authoredLightX = 0.5 + Math.cos(lightAngle) * lightR;
+      const authoredLightY = 0.5 + Math.sin(lightAngle) * lightR * 0.7;
+      const pointer = params.pointer;
+      const pointerInfluence = (pointer?.presence ?? 0) * (0.26 + (pointer?.velocity ?? 0) * 0.08);
       (uniforms.uLightPos.value as { set: (x: number, y: number) => void }).set(
-        0.5 + Math.cos(lightAngle) * lightR,
-        0.5 + Math.sin(lightAngle) * lightR * 0.7
+        mixNum(authoredLightX, pointer?.x ?? authoredLightX, pointerInfluence),
+        mixNum(authoredLightY, 1 - (pointer?.y ?? 1 - authoredLightY), pointerInfluence),
       );
 
       uniforms.uRayDensity.value = tuning.rayDensity * (0.6 + sp * 0.5);

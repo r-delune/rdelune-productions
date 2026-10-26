@@ -133,6 +133,8 @@ export interface SectionVisualStep {
   params?: Partial<VisualParams>;
   palette?: SectionPaletteConfig;
   events?: readonly VisualPlanEventConfig[];
+  /** Storyboard role for this section, used for musical section easing. */
+  role?: ExplorerStoryboardSectionRole;
 }
 
 export interface TrackVisualPlan {
