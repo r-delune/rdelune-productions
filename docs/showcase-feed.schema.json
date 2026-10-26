@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://productions.rdelune.dev/schemas/showcase-feed.schema.json",
+  "title": "Roam Studio showcase feed",
+  "description": "Upstream showcase.json published by Roam Studio and consumed by scripts/fetch-tracks.mjs. Unknown fields are allowed so the producer can add fields without breaking consumers.",
+  "type": "object",
+  "required": ["albums"],
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "total_albums": { "type": "integer", "minimum": 0 },
+    "total_tracks": { "type": "integer", "minimum": 0 },
+    "albums": { "type": "array", "items": { "$ref": "#/$defs/album" } }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "nullableString": { "type": ["string", "null"] },
+    "nullableUrl": { "type": ["string", "null"], "format": "uri" },
+    "nullableNumber": { "type": ["number", "null"] },
+    "album": {
+      "type": "object",
+      "required": ["name", "tracks"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "active": { "type": "boolean" },
+        "status": { "type": "string" },
+        "description": { "$ref": "#/$defs/nullableString" },
+        "artist_name": { "$ref": "#/$defs/nullableString" },
+        "release_date": { "$ref": "#/$defs/nullableString" },
+        "genre": { "$ref": "#/$defs/nullableString" },
+        "bpm": { "$ref": "#/$defs/nullableNumber" },
+        "key": { "$ref": "#/$defs/nullableString" },
+        "artwork_key": { "type": "string" },
+        "artwork_url": { "$ref": "#/$defs/nullableUrl" },
+        "base_color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "bandcamp_url": { "$ref": "#/$defs/nullableUrl" },
+        "apple_music_url": { "$ref": "#/$defs/nullableUrl" },
+        "visual_config": {
+          "type": "object",
+          "properties": { "default_transition_ms": { "type": "number", "minimum": 0 } },
+          "additionalProperties": true
+        },
+        "tracks": { "type": "array", "items": { "$ref": "#/$defs/track" } }
+      },
+      "additionalProperties": true
+    },
+    "track": {
+      "type": "object",
+      "required": ["id", "title"],
+      "properties": {
+        "id": { "type": "integer" },
+        "title": { "type": "string" },
+        "filename": { "type": "string" },
+        "format": { "$ref": "#/$defs/nullableString" },
+        "r2_url": { "$ref": "#/$defs/nullableUrl" },
+        "duration_seconds": { "$ref": "#/$defs/nullableNumber" },
+        "is_published": { "type": "boolean" },
+        "section_times": { "type": "array", "items": { "type": "number", "minimum": 0 } },
+        "section_times_source": { "enum": ["manual", "detected", "fallback"] },
+        "bpm": { "$ref": "#/$defs/nullableNumber" },
+        "beat_start_at": { "$ref": "#/$defs/nullableNumber" },
+        "star_rating": { "type": ["integer", "null"], "minimum": 0, "maximum": 5 },
+        "notes": { "type": "string" },
+        "recipe_id": { "type": "string" },
+        "fallback_recipe_id": { "type": "string" },
+        "visualizer": { "type": "string" },
+        "debug_label": { "type": "string" }
+      },
+      "if": { "properties": { "is_published": { "const": true } }, "required": ["is_published"] },
+      "then": {
+        "required": ["r2_url"],
+        "properties": { "r2_url": { "type": "string", "pattern": "\\.mp3(\\?.*)?$" } }
+      },
+      "additionalProperties": true
+    }
+  }
+}
