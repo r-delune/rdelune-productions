@@ -217,9 +217,15 @@ async function main() {
   const existing = loadExistingShowcase();
 
   try {
-    const res = await fetchWithTimeout(cacheBustedSourceUrl(), { cache: 'no-store' });
-    if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
-    data = await res.json();
+    const isLocalFile = !SOURCE_URL.startsWith('http://') && !SOURCE_URL.startsWith('https://');
+    if (isLocalFile) {
+      const localPath = SOURCE_URL.startsWith('file://') ? fileURLToPath(SOURCE_URL) : SOURCE_URL;
+      data = JSON.parse(readFileSync(localPath, 'utf8'));
+    } else {
+      const res = await fetchWithTimeout(cacheBustedSourceUrl(), { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
+      data = await res.json();
+    }
   } catch (error) {
     if (existing) {
       failOnTrackAudioIssues(existing.albums ?? [], 'Checked-in showcase fallback status');
